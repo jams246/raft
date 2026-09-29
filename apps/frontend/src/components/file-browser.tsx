@@ -2,10 +2,11 @@
 
 import type { DirectoryListing, FileEntry } from '@raft/shared'
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { FileBrowserEntry } from './file-browser-entry'
 import { NewFolderDialog } from './new-folder-dialog'
-import { formatFileSize, getSelectableRangePaths, sortFileEntries, type SortColumn, type SortDirection } from './file-browser-list'
-
-const actions = ['Upload', 'Download', 'Copy', 'Move', 'Rename', 'New Folder', 'Delete']
+import { RenameDialog } from './rename-dialog'
+import { FileBrowserToolbar } from './file-browser-toolbar'
+import { getSelectableRangePaths, sortFileEntries, type SortColumn, type SortDirection } from './file-browser-list'
 
 export function FileBrowser() {
   const [listing, setListing] = useState<DirectoryListing>()
@@ -19,11 +20,14 @@ export function FileBrowser() {
   const [hasError, setHasError] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false)
+  const [renameItem, setRenameItem] = useState<FileEntry>()
   const entries = listing?.entries ?? []
   const sortedEntries = useMemo(() => sortFileEntries(listing?.entries ?? [], sortColumn, sortDirection), [listing, sortColumn, sortDirection])
   const selectedPathSet = new Set(selectedPaths)
   const ariaSortDirection = sortDirection === 'asc' ? 'ascending' : 'descending'
   const sortIndicator = sortDirection === 'asc' ? '↑' : '↓'
+  const selectedEntry = selectedPaths.length === 1 ? entries.find((entry) => entry.path === selectedPaths[0]) : undefined
+  const canRename = path !== '/' && Boolean(selectedEntry && selectedEntry.type !== 'unsupported' && !selectedEntry.protectedRoot)
 
   function clearSelection() {
     if (selectedPaths.length > 0) setSelectedPaths([])
@@ -71,6 +75,11 @@ export function FileBrowser() {
     setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))
   }
 
+  function openRenameDialog() {
+    if (!selectedEntry || !canRename) return
+    setRenameItem(selectedEntry)
+  }
+
   function selectEntry(entry: FileEntry, event: MouseEvent<HTMLTableRowElement>) {
     if (entry.type === 'unsupported') return
 
@@ -88,41 +97,6 @@ export function FileBrowser() {
 
     setSelectedPaths([entry.path])
     setSelectionAnchor(entry.path)
-  }
-
-  function renderEntry(entry: FileEntry) {
-    let icon = '⚠'
-    if (entry.type === 'directory') icon = '📁'
-    if (entry.type === 'file') icon = '📄'
-    const isSelected = selectedPathSet.has(entry.path)
-    const rowClasses = ['file-browser__entry']
-    if (entry.type === 'unsupported') rowClasses.push('file-browser__entry--unsupported')
-    if (isSelected) rowClasses.push('file-browser__entry--selected')
-
-    return (
-      <tr
-        className={rowClasses.join(' ')}
-        key={entry.path}
-        onClick={(event) => selectEntry(entry, event)}
-        onDoubleClick={() => {
-          if (entry.type === 'directory') navigateTo(entry.path)
-        }}
-      >
-        <td>
-          {entry.type === 'unsupported' ? (
-            <>
-              <span aria-hidden="true">{icon}</span> {entry.name}
-              <span className="file-browser__status"> Unsupported</span>
-            </>
-          ) : (
-            <button aria-pressed={isSelected} className="file-browser__entry-button" type="button">
-              <span aria-hidden="true">{icon}</span> {entry.name}
-            </button>
-          )}
-        </td>
-        <td className="file-browser__size">{entry.type === 'file' && entry.size !== undefined ? formatFileSize(entry.size) : '—'}</td>
-      </tr>
-    )
   }
 
   const breadcrumbs = [{ name: 'My Files', path: '/' }]
@@ -162,13 +136,12 @@ export function FileBrowser() {
           })}
         </nav>
 
-        <div aria-label="File actions" className="file-browser__toolbar">
-          {actions.map((action) => (
-            <button disabled={action !== 'New Folder' || path === '/'} key={action} onClick={() => setIsNewFolderDialogOpen(true)} type="button">
-              {action}
-            </button>
-          ))}
-        </div>
+        <FileBrowserToolbar
+          canCreateFolder={path !== '/'}
+          canRename={canRename}
+          onCreateFolder={() => setIsNewFolderDialogOpen(true)}
+          onRename={openRenameDialog}
+        />
 
         {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- Blank-space clicks clear selection; row buttons remain keyboard accessible. */}
         <section
@@ -209,7 +182,17 @@ export function FileBrowser() {
                     </th>
                   </tr>
                 </thead>
-                <tbody>{sortedEntries.map(renderEntry)}</tbody>
+                <tbody>
+                  {sortedEntries.map((entry) => (
+                    <FileBrowserEntry
+                      entry={entry}
+                      isSelected={selectedPathSet.has(entry.path)}
+                      key={entry.path}
+                      onOpenDirectory={navigateTo}
+                      onSelect={selectEntry}
+                    />
+                  ))}
+                </tbody>
               </table>
               {isEmpty && (
                 <div className="file-browser__empty">
@@ -230,6 +213,14 @@ export function FileBrowser() {
 
       {isNewFolderDialogOpen && (
         <NewFolderDialog onClose={() => setIsNewFolderDialogOpen(false)} onRefresh={() => setRetryCount((count) => count + 1)} parentPath={path} />
+      )}
+      {renameItem && (
+        <RenameDialog
+          item={renameItem}
+          onClose={() => setRenameItem(undefined)}
+          onRefresh={() => setRetryCount((count) => count + 1)}
+          onSuccess={clearSelection}
+        />
       )}
 
       <section aria-label="Operation status" className="file-browser__operation-area" hidden>

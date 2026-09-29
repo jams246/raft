@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Query } from '@nestjs/common'
+import { Body, Controller, Get, HttpStatus, Post, Query } from '@nestjs/common'
 import type { DirectoryListing } from '@raft/shared'
 import { ApiException } from './api-exception.js'
 import { FilesystemService } from '../filesystem/filesystem.service.js'
@@ -14,5 +14,14 @@ export class FilesController {
     }
 
     return this.filesystemService.listDirectory(virtualPath)
+  }
+
+  @Post('rename')
+  renamePath(@Body() body: unknown): Promise<void> {
+    if (typeof body !== 'object' || body === null || !('path' in body) || typeof body.path !== 'string' || !('name' in body) || typeof body.name !== 'string') {
+      throw new ApiException('invalid_request', 'The request is invalid.', HttpStatus.BAD_REQUEST)
+    }
+
+    return this.filesystemService.renamePath(body.path, body.name)
   }
 }
