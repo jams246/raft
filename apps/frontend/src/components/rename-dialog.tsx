@@ -7,11 +7,10 @@ interface RenameDialogProps {
   item: FileEntry
   isLocked: boolean
   onClose: () => void
-  onRefresh: () => void
   onSuccess: () => void
 }
 
-export function RenameDialog({ item, isLocked, onClose, onRefresh, onSuccess }: RenameDialogProps) {
+export function RenameDialog({ item, isLocked, onClose, onSuccess }: RenameDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState(item.name)
@@ -47,7 +46,6 @@ export function RenameDialog({ item, isLocked, onClose, onRefresh, onSuccess }: 
       setErrorMessage(error instanceof Error ? error.message : 'Unable to rename item.')
     } finally {
       setIsSubmitting(false)
-      onRefresh()
     }
   }
 

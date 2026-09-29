@@ -6,10 +6,9 @@ interface NewFolderDialogProps {
   parentPath: string
   isLocked: boolean
   onClose: () => void
-  onRefresh: () => void
 }
 
-export function NewFolderDialog({ parentPath, isLocked, onClose, onRefresh }: NewFolderDialogProps) {
+export function NewFolderDialog({ parentPath, isLocked, onClose }: NewFolderDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [name, setName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -40,7 +39,6 @@ export function NewFolderDialog({ parentPath, isLocked, onClose, onRefresh }: Ne
       setErrorMessage(error instanceof Error ? error.message : 'Unable to create folder.')
     } finally {
       setIsSubmitting(false)
-      onRefresh()
     }
   }
 

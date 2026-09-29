@@ -16,6 +16,7 @@ export type TransferEvent =
   | { type: 'operation_progress'; operation: TransferState }
   | { type: 'operation_completed'; operationId: string }
   | { type: 'operation_failed'; operationId: string; message: string }
+  | { type: 'directory_changed'; path: string }
 
 export type ConflictPolicy = 'rename' | 'overwrite'
 export type UploadConflictPolicy = ConflictPolicy

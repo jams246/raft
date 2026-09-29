@@ -23,17 +23,22 @@ export function FileBrowser() {
   const [transferError, setTransferError] = useState('')
   const [pendingTransferKind, setPendingTransferKind] = useState<'copy' | 'move'>()
   const [transferWorkflow, setTransferWorkflow] = useState<TransferWorkflowState>()
-  const refreshCallbacks = useRef(new Map<number, () => void>())
+  const refreshCallbacks = useRef(new Map<number, { path: string; refresh: () => void }>())
   const nextPaneId = useRef(1)
   const uploadController = useRef<AbortController | undefined>(undefined)
   const transferController = useRef<AbortController | undefined>(undefined)
 
-  const registerListingRefresh = useCallback((paneId: number, refresh?: () => void) => {
-    if (refresh) refreshCallbacks.current.set(paneId, refresh)
+  const registerListingRefresh = useCallback((paneId: number, path: string, refresh?: () => void) => {
+    if (refresh) refreshCallbacks.current.set(paneId, { path, refresh })
     else refreshCallbacks.current.delete(paneId)
   }, [])
   const refreshVisibleListings = useCallback(() => {
-    refreshCallbacks.current.forEach((refresh) => refresh())
+    refreshCallbacks.current.forEach(({ refresh }) => refresh())
+  }, [])
+  const refreshVisibleDirectory = useCallback((path: string) => {
+    refreshCallbacks.current.forEach((listing) => {
+      if (listing.path === path) listing.refresh()
+    })
   }, [])
   const finishTransfer = useCallback(() => {
     const controller = uploadController.current
@@ -45,10 +50,10 @@ export function FileBrowser() {
     setUploadPending(false)
     setPendingTransferKind(undefined)
   }, [])
-  const { operation, isConnected, notice } = useTransferEvents(refreshVisibleListings, finishTransfer)
-
   const destinationPane = transferWorkflow?.destinationPane
   const visiblePanes = destinationPane ? [...panes, destinationPane] : panes
+  const visiblePaths = [...new Set(visiblePanes.map((pane) => pane.path))]
+  const { operation, isConnected, notice } = useTransferEvents(visiblePaths, refreshVisibleListings, refreshVisibleDirectory, finishTransfer)
   const isDualPane = visiblePanes.length === 2
   const transferPending = pendingTransferKind !== undefined
   const isOperationLocked = !isConnected || operation !== null || uploadPending || transferPending
@@ -79,16 +84,12 @@ export function FileBrowser() {
     setUploadPending(true)
     setUploadError('')
   }, [])
-  const finishUploadRequest = useCallback(
-    (controller: AbortController, error?: string) => {
-      if (uploadController.current !== controller) return
-      uploadController.current = undefined
-      setUploadPending(false)
-      setUploadError(error ?? '')
-      refreshVisibleListings()
-    },
-    [refreshVisibleListings]
-  )
+  const finishUploadRequest = useCallback((controller: AbortController, error?: string) => {
+    if (uploadController.current !== controller) return
+    uploadController.current = undefined
+    setUploadPending(false)
+    setUploadError(error ?? '')
+  }, [])
   const beginTransferRequest = useCallback(
     (kind: 'copy' | 'move', controller: AbortController) => {
       transferController.current = controller
@@ -99,15 +100,24 @@ export function FileBrowser() {
     },
     [destinationPane, setTransferWorkflow]
   )
-  const finishTransferRequest = useCallback(
-    (controller: AbortController, error?: string) => {
-      if (transferController.current !== controller) return
-      transferController.current = undefined
-      setPendingTransferKind(undefined)
-      setTransferError(error ?? '')
-      refreshVisibleListings()
+  const finishTransferRequest = useCallback((controller: AbortController, error?: string) => {
+    if (transferController.current !== controller) return
+    transferController.current = undefined
+    setPendingTransferKind(undefined)
+    setTransferError(error ?? '')
+  }, [])
+
+  const recoverMissingDirectory = useCallback(
+    (paneId: number, path: string) => {
+      const returnToMyFiles = (pane: FileBrowserPaneState) =>
+        pane.path === path ? { ...pane, path: '/', selectedPaths: [], selectionAnchor: undefined } : pane
+      setPanes((currentPanes) => currentPanes.map((pane) => (pane.id === paneId ? returnToMyFiles(pane) : pane)))
+      setTransferWorkflow((workflow) =>
+        workflow?.destinationPane?.id === paneId ? { ...workflow, destinationPane: returnToMyFiles(workflow.destinationPane) } : workflow
+      )
+      setTransferError('Directory no longer exists. Returned to My Files.')
     },
-    [refreshVisibleListings]
+    [setPanes, setTransferError, setTransferWorkflow]
   )
 
   function requestTransfer(kind: 'copy' | 'move', sourcePane: FileBrowserPaneState, sourcePaths: string[]) {
@@ -145,12 +155,12 @@ export function FileBrowser() {
             isTransferDestinationAllowed={panes.length === 1 || panes.find((candidate) => candidate.id !== pane.id)?.path !== '/'}
             key={pane.id}
             onChangePane={(update) => changePane(pane.id, update)}
+            onDirectoryNotFound={recoverMissingDirectory}
             onCopy={(sourcePaths) => requestTransfer('copy', pane, sourcePaths)}
             onMove={(sourcePaths) => requestTransfer('move', pane, sourcePaths)}
             onInteraction={() => {
               mostRecentlyInteractedPaneId.current = pane.id
             }}
-            onRefreshVisible={refreshVisibleListings}
             onRegisterListingRefresh={registerListingRefresh}
             onUploadError={setUploadError}
             onUploadRequestFinished={finishUploadRequest}

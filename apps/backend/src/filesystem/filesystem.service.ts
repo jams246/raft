@@ -20,6 +20,14 @@ export class FilesystemService {
     return this.validateSupportedPath(await resolveVirtualPath(virtualPath))
   }
 
+  async validateDirectory(virtualPath: string): Promise<ValidatedPath> {
+    const directory = await resolveVirtualPath(virtualPath)
+    if (!directory.isDirectory) {
+      throw new ApiException('invalid_path', 'The requested path is invalid.', HttpStatus.BAD_REQUEST)
+    }
+    return directory
+  }
+
   async openFileForDownload(virtualPath: string): Promise<{ fileName: string; stream: Readable }> {
     const validatedPath = await resolveVirtualPath(virtualPath)
     if (validatedPath.isDirectory) {
@@ -146,15 +154,23 @@ export class FilesystemService {
   }
 
   async listDirectory(virtualPath: string): Promise<DirectoryListing> {
-    const directory = await resolveVirtualPath(virtualPath)
-    if (!directory.isDirectory) {
-      throw new ApiException('invalid_path', 'The requested path is invalid.', HttpStatus.BAD_REQUEST)
-    }
+    const directory = await this.validateDirectory(virtualPath)
 
-    const names = (await readdir(directory.absolutePath)).filter((name) => !INTERNAL_TEMPORARY_NAME.test(name))
+    const names = (
+      await readdir(directory.absolutePath).catch((error: unknown) => {
+        throw toFilesystemException(error)
+      })
+    ).filter((name) => !INTERNAL_TEMPORARY_NAME.test(name))
     const entries = await Promise.all(
-      names.map(async (name): Promise<FileEntry> => {
-        const metadata = await lstat(join(directory.absolutePath, name))
+      names.map(async (name): Promise<FileEntry | undefined> => {
+        let metadata
+        try {
+          metadata = await lstat(join(directory.absolutePath, name))
+        } catch (error) {
+          const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+          if (code === 'ENOENT') return undefined
+          throw toFilesystemException(error)
+        }
         let type: FileEntry['type'] = 'unsupported'
         if (metadata.isFile()) type = 'file'
         else if (metadata.isDirectory()) type = 'directory'
@@ -171,7 +187,22 @@ export class FilesystemService {
       })
     )
 
-    return { path: virtualPath, entries: entries.sort((left, right) => left.name.localeCompare(right.name)) }
+    try {
+      const currentDirectory = await lstat(directory.absolutePath)
+      if (currentDirectory.isSymbolicLink()) {
+        throw new ApiException('unsupported', 'The requested path is unsupported.', HttpStatus.BAD_REQUEST)
+      }
+      if (!currentDirectory.isDirectory()) {
+        throw new ApiException('invalid_path', 'The requested path is invalid.', HttpStatus.BAD_REQUEST)
+      }
+    } catch (error) {
+      throw toFilesystemException(error)
+    }
+
+    return {
+      path: virtualPath,
+      entries: entries.filter((entry): entry is FileEntry => entry !== undefined).sort((left, right) => left.name.localeCompare(right.name))
+    }
   }
 
   runTransferMutation<T>(operationId: string, action: () => Promise<T>): Promise<T> {

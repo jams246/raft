@@ -25,9 +25,9 @@ interface FileBrowserPaneProps {
   isOperationLocked: boolean
   isTransferDestinationAllowed: boolean
   onChangePane: (update: (pane: FileBrowserPaneState) => FileBrowserPaneState) => void
+  onDirectoryNotFound: (paneId: number, path: string) => void
   onInteraction: () => void
-  onRegisterListingRefresh: (paneId: number, refresh?: () => void) => void
-  onRefreshVisible: () => void
+  onRegisterListingRefresh: (paneId: number, path: string, refresh?: () => void) => void
   onCopy: (sourcePaths: string[]) => void
   onMove: (sourcePaths: string[]) => void
   onUploadError: (error: string) => void
@@ -43,9 +43,9 @@ export function FileBrowserPane({
   isOperationLocked,
   isTransferDestinationAllowed,
   onChangePane,
+  onDirectoryNotFound,
   onInteraction,
   onRegisterListingRefresh,
-  onRefreshVisible,
   onCopy,
   onMove,
   onUploadError,
@@ -58,7 +58,7 @@ export function FileBrowserPane({
   const [uploadSelection, setUploadSelection] = useState<UploadSelection>()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
-  const { listing, isLoading, hasError, refresh } = useDirectoryListing(pane.path)
+  const { listing, isLoading, hasError, missingPath, refresh } = useDirectoryListing(pane.path)
   const entries = listing?.entries ?? EMPTY_ENTRIES
   const sortedEntries = useMemo(() => sortFileEntries(entries, pane.sortColumn, pane.sortDirection), [entries, pane.sortColumn, pane.sortDirection])
   const selectedPathSet = useMemo(() => new Set(pane.selectedPaths), [pane.selectedPaths])
@@ -75,9 +75,13 @@ export function FileBrowserPane({
 
   useEffect(() => folderInputRef.current?.setAttribute('webkitdirectory', ''), [])
   useLayoutEffect(() => {
-    onRegisterListingRefresh(pane.id, refresh)
-    return () => onRegisterListingRefresh(pane.id)
-  }, [onRegisterListingRefresh, pane.id, refresh])
+    onRegisterListingRefresh(pane.id, pane.path, refresh)
+    return () => onRegisterListingRefresh(pane.id, pane.path)
+  }, [onRegisterListingRefresh, pane.id, pane.path, refresh])
+
+  useEffect(() => {
+    if (missingPath === pane.path && pane.path !== '/') onDirectoryNotFound(pane.id, pane.path)
+  }, [missingPath, onDirectoryNotFound, pane.id, pane.path])
 
   function clearSelection() {
     if (isFrozen || isNavigationOnly) return
@@ -206,28 +210,10 @@ export function FileBrowserPane({
         sortColumn={pane.sortColumn}
         sortDirection={pane.sortDirection}
       />
-      {isNewFolderDialogOpen ? (
-        <NewFolderDialog isLocked={isOperationLocked} onClose={() => setIsNewFolderDialogOpen(false)} onRefresh={onRefreshVisible} parentPath={pane.path} />
-      ) : null}
-      {renameItem ? (
-        <RenameDialog
-          isLocked={isOperationLocked}
-          item={renameItem}
-          onClose={() => setRenameItem(undefined)}
-          onRefresh={onRefreshVisible}
-          onSuccess={clearSelection}
-        />
-      ) : null}
+      {isNewFolderDialogOpen ? <NewFolderDialog isLocked={isOperationLocked} onClose={() => setIsNewFolderDialogOpen(false)} parentPath={pane.path} /> : null}
+      {renameItem ? <RenameDialog isLocked={isOperationLocked} item={renameItem} onClose={() => setRenameItem(undefined)} onSuccess={clearSelection} /> : null}
       {deletePaths ? (
-        <DeleteConfirmationDialog
-          isLocked={isOperationLocked}
-          onClose={() => setDeletePaths(undefined)}
-          onFinish={() => {
-            clearSelection()
-            onRefreshVisible()
-          }}
-          paths={deletePaths}
-        />
+        <DeleteConfirmationDialog isLocked={isOperationLocked} onClose={() => setDeletePaths(undefined)} onFinish={clearSelection} paths={deletePaths} />
       ) : null}
       {uploadSelection ? (
         <UploadDialog
