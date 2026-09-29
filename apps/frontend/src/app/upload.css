@@ -1,0 +1,53 @@
+.file-browser__upload-control {
+  position: relative;
+}
+
+.file-browser__upload-menu {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid #c7d0d9;
+  background: #fff;
+}
+
+.file-browser__upload-input,
+.file-browser__operation-area[hidden] {
+  display: none;
+}
+
+.upload-dialog {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: 85vh;
+  overflow: auto;
+  padding: 1.25rem;
+  border: 1px solid #c7d0d9;
+  border-radius: 0.5rem;
+  color: inherit;
+}
+
+.upload-dialog::backdrop {
+  background: rgb(23 33 43 / 55%);
+}
+
+.upload-dialog__title {
+  margin: 0 0 1rem;
+}
+
+.upload-dialog__conflicts {
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.upload-dialog__policies {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.upload-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}

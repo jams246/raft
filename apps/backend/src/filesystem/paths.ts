@@ -6,6 +6,7 @@ import { HttpStatus } from '@nestjs/common'
 import { toFilesystemException } from './errors.js'
 
 export const DATA_ROOT = '/data'
+export const INTERNAL_TEMPORARY_NAME = /^\.__filebrowser_(?:tmp|old)_[0-9a-f-]+_\d+$/i
 
 export interface ValidatedPath {
   virtualPath: string

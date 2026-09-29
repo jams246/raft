@@ -5,9 +5,15 @@ import { HealthController } from './api/health.controller.js'
 import { HealthService } from './api/health.service.js'
 import { FilesystemService } from './filesystem/filesystem.service.js'
 import { DownloadsService } from './downloads/downloads.service.js'
+import { TransferService } from './transfers/transfer.service.js'
+import { UploadsController } from './api/uploads.controller.js'
+import { EventsController } from './events/events.controller.js'
+import { UploadFilesystemService } from './filesystem/upload-filesystem.service.js'
+import { UploadSlotGuard } from './api/upload-slot.guard.js'
+import { UploadInterceptor } from './api/upload.interceptor.js'
 
 @Module({
-  controllers: [FilesController, DirectoriesController, HealthController],
-  providers: [FilesystemService, DownloadsService, HealthService]
+  controllers: [FilesController, DirectoriesController, HealthController, UploadsController, EventsController],
+  providers: [FilesystemService, DownloadsService, HealthService, TransferService, UploadFilesystemService, UploadSlotGuard, UploadInterceptor]
 })
 export class AppModule {}

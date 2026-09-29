@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 interface NewFolderDialogProps {
   parentPath: string
+  isLocked: boolean
   onClose: () => void
   onRefresh: () => void
 }
 
-export function NewFolderDialog({ parentPath, onClose, onRefresh }: NewFolderDialogProps) {
+export function NewFolderDialog({ parentPath, isLocked, onClose, onRefresh }: NewFolderDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [name, setName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -20,6 +21,7 @@ export function NewFolderDialog({ parentPath, onClose, onRefresh }: NewFolderDia
 
   async function createFolder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isLocked) return
     setIsSubmitting(true)
     setErrorMessage('')
 
@@ -59,7 +61,7 @@ export function NewFolderDialog({ parentPath, onClose, onRefresh }: NewFolderDia
         <label htmlFor="new-folder-name">Folder name</label>
         <input
           autoFocus
-          disabled={isSubmitting}
+          disabled={isSubmitting || isLocked}
           id="new-folder-name"
           onChange={(event) => setName(event.target.value)}
           placeholder="Documentaries"
@@ -71,7 +73,7 @@ export function NewFolderDialog({ parentPath, onClose, onRefresh }: NewFolderDia
           <button disabled={isSubmitting} onClick={() => dialogRef.current?.close()} type="button">
             Cancel
           </button>
-          <button disabled={isSubmitting} type="submit">
+          <button disabled={isSubmitting || isLocked} type="submit">
             {isSubmitting ? 'Creating…' : 'Create'}
           </button>
         </div>

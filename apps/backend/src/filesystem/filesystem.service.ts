@@ -4,14 +4,17 @@ import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import type { Readable } from 'node:stream'
 import { basename, dirname, join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
-import { resolveVirtualPath, validateSupportedTree, validateVirtualPath } from './paths.js'
+import { INTERNAL_TEMPORARY_NAME, resolveVirtualPath, validateSupportedTree, validateVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
 import { toFilesystemException } from './errors.js'
+import { TransferService } from '../transfers/transfer.service.js'
 
 @Injectable()
 export class FilesystemService {
   // ponytail: serialize local mutations; use per-directory locks if throughput becomes a constraint.
   private mutationQueue = Promise.resolve()
+
+  constructor(private readonly transferService: TransferService) {}
 
   async validateExistingPath(virtualPath: string): Promise<ValidatedPath> {
     return this.validateSupportedPath(await resolveVirtualPath(virtualPath))
@@ -38,6 +41,7 @@ export class FilesystemService {
   }
 
   async deletePaths(virtualPaths: string[]): Promise<void> {
+    this.transferService.assertIdle()
     if (virtualPaths.length === 0) {
       throw new ApiException('invalid_request', 'Select at least one item to delete.', HttpStatus.BAD_REQUEST)
     }
@@ -87,6 +91,7 @@ export class FilesystemService {
   }
 
   async createDirectory(parentPath: string, name: string): Promise<void> {
+    this.transferService.assertIdle()
     if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\0')) {
       throw new ApiException('invalid_request', 'The folder name is invalid.', HttpStatus.BAD_REQUEST)
     }
@@ -107,6 +112,7 @@ export class FilesystemService {
   }
 
   async renamePath(virtualPath: string, name: string): Promise<void> {
+    this.transferService.assertIdle()
     if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\0')) {
       throw new ApiException('invalid_request', 'The new name is invalid.', HttpStatus.BAD_REQUEST)
     }
@@ -145,7 +151,7 @@ export class FilesystemService {
       throw new ApiException('invalid_path', 'The requested path is invalid.', HttpStatus.BAD_REQUEST)
     }
 
-    const names = await readdir(directory.absolutePath)
+    const names = (await readdir(directory.absolutePath)).filter((name) => !INTERNAL_TEMPORARY_NAME.test(name))
     const entries = await Promise.all(
       names.map(async (name): Promise<FileEntry> => {
         const metadata = await lstat(join(directory.absolutePath, name))
@@ -168,9 +174,28 @@ export class FilesystemService {
     return { path: virtualPath, entries: entries.sort((left, right) => left.name.localeCompare(right.name)) }
   }
 
-  private runMutation(action: () => Promise<void>): Promise<void> {
-    const result = this.mutationQueue.then(action)
-    this.mutationQueue = result.catch(() => {})
+  runTransferMutation<T>(operationId: string, action: () => Promise<T>): Promise<T> {
+    const result = this.mutationQueue.then(() => {
+      this.transferService.assertActive(operationId)
+      return action()
+    })
+    this.mutationQueue = result.then(
+      () => undefined,
+      () => undefined
+    )
+    return result
+  }
+
+  private runMutation<T>(action: () => Promise<T>): Promise<T> {
+    this.transferService.assertIdle()
+    const result = this.mutationQueue.then(() => {
+      this.transferService.assertIdle()
+      return action()
+    })
+    this.mutationQueue = result.then(
+      () => undefined,
+      () => undefined
+    )
     return result
   }
 }

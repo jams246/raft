@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 interface DeleteConfirmationDialogProps {
   paths: string[]
+  isLocked: boolean
   onClose: () => void
   onFinish: () => void
 }
 
-export function DeleteConfirmationDialog({ paths, onClose, onFinish }: DeleteConfirmationDialogProps) {
+export function DeleteConfirmationDialog({ paths, isLocked, onClose, onFinish }: DeleteConfirmationDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -21,6 +22,7 @@ export function DeleteConfirmationDialog({ paths, onClose, onFinish }: DeleteCon
 
   async function deleteItems(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isLocked) return
     setIsSubmitting(true)
 
     try {
@@ -71,7 +73,7 @@ export function DeleteConfirmationDialog({ paths, onClose, onFinish }: DeleteCon
             <button disabled={isSubmitting} onClick={() => dialogRef.current?.close()} type="button">
               Cancel
             </button>
-            <button className="delete-confirmation-dialog__confirm--destructive" disabled={isSubmitting} type="submit">
+            <button className="delete-confirmation-dialog__confirm--destructive" disabled={isSubmitting || isLocked} type="submit">
               {isSubmitting ? 'Deleting…' : 'Delete'}
             </button>
           </div>

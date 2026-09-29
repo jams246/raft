@@ -5,12 +5,13 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 interface RenameDialogProps {
   item: FileEntry
+  isLocked: boolean
   onClose: () => void
   onRefresh: () => void
   onSuccess: () => void
 }
 
-export function RenameDialog({ item, onClose, onRefresh, onSuccess }: RenameDialogProps) {
+export function RenameDialog({ item, isLocked, onClose, onRefresh, onSuccess }: RenameDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState(item.name)
@@ -26,6 +27,7 @@ export function RenameDialog({ item, onClose, onRefresh, onSuccess }: RenameDial
 
   async function renameItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isLocked) return
     setIsSubmitting(true)
     setErrorMessage('')
 
@@ -64,13 +66,21 @@ export function RenameDialog({ item, onClose, onRefresh, onSuccess }: RenameDial
       </h2>
       <form className="rename-dialog__form" onSubmit={(event) => void renameItem(event)}>
         <label htmlFor="rename-name">Name</label>
-        <input autoFocus disabled={isSubmitting} id="rename-name" onChange={(event) => setName(event.target.value)} ref={inputRef} required value={name} />
+        <input
+          autoFocus
+          disabled={isSubmitting || isLocked}
+          id="rename-name"
+          onChange={(event) => setName(event.target.value)}
+          ref={inputRef}
+          required
+          value={name}
+        />
         {errorMessage ? <p role="alert">{errorMessage}</p> : null}
         <div className="rename-dialog__actions">
           <button disabled={isSubmitting} onClick={() => dialogRef.current?.close()} type="button">
             Cancel
           </button>
-          <button disabled={isSubmitting} type="submit">
+          <button disabled={isSubmitting || isLocked} type="submit">
             {isSubmitting ? 'Renaming…' : 'Rename'}
           </button>
         </div>

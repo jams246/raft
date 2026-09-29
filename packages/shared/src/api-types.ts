@@ -5,6 +5,7 @@ export type ApiErrorCode =
   | 'unsupported'
   | 'protected_root'
   | 'conflict'
+  | 'operation_busy'
   | 'operation_failed'
   | 'invalid_request'
 
