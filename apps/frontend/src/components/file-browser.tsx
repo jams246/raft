@@ -9,6 +9,7 @@ import { DeleteConfirmationDialog } from './delete-confirmation-dialog'
 import { FileBrowserToolbar } from './file-browser-toolbar'
 import { getSelectableRangePaths, sortFileEntries, type SortColumn, type SortDirection } from './file-browser-list'
 import { getBreadcrumbs } from './file-browser-breadcrumbs'
+import { canDownloadSelection, downloadSelection } from './file-browser-download'
 
 export function FileBrowser() {
   const [listing, setListing] = useState<DirectoryListing>()
@@ -30,6 +31,7 @@ export function FileBrowser() {
   const ariaSortDirection = sortDirection === 'asc' ? 'ascending' : 'descending'
   const sortIndicator = sortDirection === 'asc' ? '↑' : '↓'
   const selectedEntry = selectedPaths.length === 1 ? entries.find((entry) => entry.path === selectedPaths[0]) : undefined
+  const canDownload = !isLoading && !hasError && canDownloadSelection(entries, selectedPaths)
   const canRename = path !== '/' && Boolean(selectedEntry && selectedEntry.type !== 'unsupported' && !selectedEntry.protectedRoot)
   const canDelete =
     path !== '/' &&
@@ -141,13 +143,11 @@ export function FileBrowser() {
         <FileBrowserToolbar
           canCreateFolder={path !== '/'}
           canDelete={canDelete}
-          canDownload={!isLoading && !hasError && selectedEntry?.type === 'file'}
+          canDownload={canDownload}
           canRename={canRename}
           onCreateFolder={() => setIsNewFolderDialogOpen(true)}
           onDelete={() => canDelete && setDeletePaths(selectedPaths)}
-          onDownload={() =>
-            selectedEntry?.type === 'file' && window.open(`/api/download?${new URLSearchParams({ path: selectedEntry.path })}`, '_blank', 'noopener')
-          }
+          onDownload={() => canDownload && downloadSelection(selectedPaths)}
           onRename={openRenameDialog}
         />
 

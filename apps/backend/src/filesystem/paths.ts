@@ -1,4 +1,5 @@
-import { lstat } from 'node:fs/promises'
+import type { Stats } from 'node:fs'
+import { lstat, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { HttpStatus } from '@nestjs/common'
@@ -10,6 +11,13 @@ export interface ValidatedPath {
   virtualPath: string
   absolutePath: string
   isDirectory: boolean
+}
+
+export interface SupportedTreeEntry {
+  absolutePath: string
+  relativePath: string
+  isDirectory: boolean
+  stats: Stats
 }
 
 export function validateVirtualPath(virtualPath: string): string[] {
@@ -49,6 +57,32 @@ export async function resolveVirtualPath(virtualPath: string): Promise<Validated
   }
 
   return { virtualPath, absolutePath, isDirectory: currentStat.isDirectory() }
+}
+
+export async function listSupportedTree(validatedPath: ValidatedPath): Promise<SupportedTreeEntry[]> {
+  const entries: SupportedTreeEntry[] = []
+  await visitSupportedTree(validatedPath.absolutePath, '', (entry) => entries.push(entry))
+  return entries
+}
+
+export async function validateSupportedTree(validatedPath: ValidatedPath): Promise<void> {
+  await visitSupportedTree(validatedPath.absolutePath, '')
+}
+
+async function visitSupportedTree(absolutePath: string, relativePath: string, visit?: (entry: SupportedTreeEntry) => void): Promise<void> {
+  const stats = await inspectComponent(absolutePath)
+  if (!stats.isDirectory() && !stats.isFile()) {
+    throw new ApiException('unsupported', 'The requested path is unsupported.', HttpStatus.BAD_REQUEST)
+  }
+
+  visit?.({ absolutePath, relativePath, isDirectory: stats.isDirectory(), stats })
+  if (!stats.isDirectory()) return
+
+  const names = await readdir(absolutePath)
+  if (visit) names.sort((left, right) => left.localeCompare(right))
+  for (const name of names) {
+    await visitSupportedTree(join(absolutePath, name), relativePath ? `${relativePath}/${name}` : name, visit)
+  }
 }
 
 async function inspectComponent(absolutePath: string) {

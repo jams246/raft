@@ -4,7 +4,7 @@ import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import type { Readable } from 'node:stream'
 import { basename, dirname, join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
-import { resolveVirtualPath, validateVirtualPath } from './paths.js'
+import { resolveVirtualPath, validateSupportedTree, validateVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
 import { toFilesystemException } from './errors.js'
 
@@ -78,7 +78,7 @@ export class FilesystemService {
   private async validateSupportedPath(validatedPath: ValidatedPath): Promise<ValidatedPath> {
     if (validatedPath.isDirectory) {
       try {
-        await this.validateDirectoryTree(validatedPath.absolutePath)
+        await validateSupportedTree(validatedPath)
       } catch (error) {
         throw toFilesystemException(error)
       }
@@ -172,17 +172,5 @@ export class FilesystemService {
     const result = this.mutationQueue.then(action)
     this.mutationQueue = result.catch(() => {})
     return result
-  }
-
-  private async validateDirectoryTree(directoryPath: string): Promise<void> {
-    for (const name of await readdir(directoryPath)) {
-      const childPath = join(directoryPath, name)
-      const metadata = await lstat(childPath)
-      if (metadata.isDirectory()) {
-        await this.validateDirectoryTree(childPath)
-      } else if (!metadata.isFile()) {
-        throw new ApiException('unsupported', 'The requested path is unsupported.', HttpStatus.BAD_REQUEST)
-      }
-    }
   }
 }
