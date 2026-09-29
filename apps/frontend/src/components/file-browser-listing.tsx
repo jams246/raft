@@ -6,6 +6,8 @@ import { FileBrowserEntry } from './file-browser-entry'
 import type { SortColumn, SortDirection } from './file-browser-list'
 
 interface FileBrowserListingProps {
+  isFrozen?: boolean
+  isNavigationOnly?: boolean
   path: string
   listing?: DirectoryListing
   entries: FileEntry[]
@@ -23,6 +25,8 @@ interface FileBrowserListingProps {
 }
 
 export function FileBrowserListing({
+  isFrozen = false,
+  isNavigationOnly = false,
   path,
   listing,
   entries,
@@ -69,12 +73,12 @@ export function FileBrowserListing({
             <thead>
               <tr>
                 <th aria-sort={sortColumn === 'name' ? ariaSortDirection : 'none'} className="file-browser__heading" scope="col">
-                  <button className="file-browser__sort-button" onClick={() => onSort('name')} type="button">
+                  <button className="file-browser__sort-button" disabled={isFrozen || isNavigationOnly} onClick={() => onSort('name')} type="button">
                     Name {sortColumn === 'name' ? sortIndicator : ''}
                   </button>
                 </th>
                 <th aria-sort={sortColumn === 'size' ? ariaSortDirection : 'none'} className="file-browser__heading file-browser__size-heading" scope="col">
-                  <button className="file-browser__sort-button" onClick={() => onSort('size')} type="button">
+                  <button className="file-browser__sort-button" disabled={isFrozen || isNavigationOnly} onClick={() => onSort('size')} type="button">
                     Size {sortColumn === 'size' ? sortIndicator : ''}
                   </button>
                 </th>
@@ -82,7 +86,15 @@ export function FileBrowserListing({
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <FileBrowserEntry entry={entry} isSelected={selectedPaths.has(entry.path)} key={entry.path} onOpenDirectory={onNavigate} onSelect={onSelect} />
+                <FileBrowserEntry
+                  entry={entry}
+                  isSelected={selectedPaths.has(entry.path)}
+                  isSelectable={!isFrozen && !isNavigationOnly}
+                  isNavigable={!isFrozen}
+                  key={entry.path}
+                  onOpenDirectory={onNavigate}
+                  onSelect={onSelect}
+                />
               ))}
             </tbody>
           </table>

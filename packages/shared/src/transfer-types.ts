@@ -6,6 +6,7 @@ export interface TransferState {
   current: number
   total: number
   currentName?: string
+  destinationName?: string
   status: 'running'
 }
 
@@ -16,7 +17,8 @@ export type TransferEvent =
   | { type: 'operation_completed'; operationId: string }
   | { type: 'operation_failed'; operationId: string; message: string }
 
-export type UploadConflictPolicy = 'rename' | 'overwrite'
+export type ConflictPolicy = 'rename' | 'overwrite'
+export type UploadConflictPolicy = ConflictPolicy
 
 export interface UploadManifestItem {
   name: string
@@ -30,5 +32,11 @@ export interface UploadManifest {
 
 export interface UploadConflict {
   name: string
+  suggestedName: string
+}
+
+export interface CopyConflict {
+  source: string
+  existingName: string
   suggestedName: string
 }

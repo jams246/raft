@@ -9,7 +9,7 @@ import { FilesystemService } from './filesystem.service.js'
 import { parseUploadManifest } from './upload-validation.js'
 import { resolveVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
-import { getUploadConflicts, promotePreparedReplacement, resolveUploadTargets, unusedInternalPath, validateIncomingNames } from './prepared-replacement.js'
+import { getConflicts, promotePreparedReplacement, resolveReplacementTargets, unusedInternalPath, validateIncomingNames } from './prepared-replacement.js'
 
 interface StoredPart {
   fieldname: string
@@ -57,7 +57,7 @@ export class UploadFilesystemService {
     } finally {
       await this.cleanupStagingDirectory(probePath)
     }
-    return getUploadConflicts(destination.absolutePath, manifest.items)
+    return getConflicts(destination.absolutePath, manifest.items)
   }
 
   async finishUpload(
@@ -78,7 +78,7 @@ export class UploadFilesystemService {
       const destination = await this.validateDestination(virtualPath)
       await validateIncomingNames(stagingPath, manifest.items)
       const incomingPaths = await this.prepareIncomingObjects(stagingPath, manifest, storedParts, signal)
-      const targets = await resolveUploadTargets(destination.absolutePath, manifest.items, policy)
+      const targets = await resolveReplacementTargets(destination.absolutePath, manifest.items, policy)
       const preparedPaths: string[] = []
       let completedItems = 0
       try {

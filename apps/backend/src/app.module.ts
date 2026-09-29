@@ -11,9 +11,20 @@ import { EventsController } from './events/events.controller.js'
 import { UploadFilesystemService } from './filesystem/upload-filesystem.service.js'
 import { UploadSlotGuard } from './api/upload-slot.guard.js'
 import { UploadInterceptor } from './api/upload.interceptor.js'
+import { CopyController } from './api/copy.controller.js'
+import { CopyFilesystemService } from './filesystem/copy-filesystem.service.js'
 
 @Module({
-  controllers: [FilesController, DirectoriesController, HealthController, UploadsController, EventsController],
-  providers: [FilesystemService, DownloadsService, HealthService, TransferService, UploadFilesystemService, UploadSlotGuard, UploadInterceptor]
+  controllers: [FilesController, DirectoriesController, HealthController, UploadsController, EventsController, CopyController],
+  providers: [
+    FilesystemService,
+    DownloadsService,
+    HealthService,
+    TransferService,
+    UploadFilesystemService,
+    CopyFilesystemService,
+    UploadSlotGuard,
+    UploadInterceptor
+  ]
 })
 export class AppModule {}

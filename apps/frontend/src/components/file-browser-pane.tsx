@@ -4,7 +4,7 @@ import type { FileEntry } from '@raft/shared'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent } from 'react'
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog'
 import { canDownloadSelection, downloadSelection } from './file-browser-download'
-import { getBreadcrumbs } from './file-browser-breadcrumbs'
+import { FileBrowserLocation } from './file-browser-location'
 import { getSelectableRangePaths, sortFileEntries, type SortColumn } from './file-browser-list'
 import { FileBrowserListing } from './file-browser-listing'
 import { FileBrowserToolbar } from './file-browser-toolbar'
@@ -18,26 +18,34 @@ import type { FileBrowserPaneState } from './file-browser-pane-state'
 type PanePosition = 'left' | 'right'
 
 interface FileBrowserPaneProps {
+  isFrozen?: boolean
+  isNavigationOnly?: boolean
   pane: FileBrowserPaneState
   position: PanePosition
   isOperationLocked: boolean
+  isCopyDestinationAllowed: boolean
   onChangePane: (update: (pane: FileBrowserPaneState) => FileBrowserPaneState) => void
   onInteraction: () => void
   onRegisterListingRefresh: (paneId: number, refresh?: () => void) => void
   onRefreshVisible: () => void
+  onCopy: (sourcePaths: string[]) => void
   onUploadError: (error: string) => void
   onUploadRequestStarted: (controller: AbortController) => void
   onUploadRequestFinished: (controller: AbortController, error?: string) => void
 }
 
 export function FileBrowserPane({
+  isFrozen = false,
+  isNavigationOnly = false,
   pane,
   position,
   isOperationLocked,
+  isCopyDestinationAllowed,
   onChangePane,
   onInteraction,
   onRegisterListingRefresh,
   onRefreshVisible,
+  onCopy,
   onUploadError,
   onUploadRequestStarted,
   onUploadRequestFinished
@@ -52,7 +60,6 @@ export function FileBrowserPane({
   const entries = listing?.entries ?? EMPTY_ENTRIES
   const sortedEntries = useMemo(() => sortFileEntries(entries, pane.sortColumn, pane.sortDirection), [entries, pane.sortColumn, pane.sortDirection])
   const selectedPathSet = useMemo(() => new Set(pane.selectedPaths), [pane.selectedPaths])
-  const breadcrumbs = getBreadcrumbs(pane.path)
   const isEmpty = pane.path === '/' ? !entries.some((entry) => entry.type === 'directory') : entries.length === 0
   const selectedEntry = pane.selectedPaths.length === 1 ? entries.find((entry) => entry.path === pane.selectedPaths[0]) : undefined
   const canDownload = !isLoading && !hasError && canDownloadSelection(entries, pane.selectedPaths)
@@ -62,6 +69,8 @@ export function FileBrowserPane({
     pane.selectedPaths.length > 0 &&
     pane.selectedPaths.every((selectedPath) => entries.some((entry) => entry.path === selectedPath && entry.type !== 'unsupported' && !entry.protectedRoot))
 
+  const canCopy = canDelete && isCopyDestinationAllowed && !isLoading && !hasError
+
   useEffect(() => folderInputRef.current?.setAttribute('webkitdirectory', ''), [])
   useLayoutEffect(() => {
     onRegisterListingRefresh(pane.id, refresh)
@@ -69,15 +78,18 @@ export function FileBrowserPane({
   }, [onRegisterListingRefresh, pane.id, refresh])
 
   function clearSelection() {
+    if (isFrozen || isNavigationOnly) return
     onChangePane((currentPane) => ({ ...currentPane, selectedPaths: [], selectionAnchor: undefined }))
   }
 
   function navigateTo(nextPath: string) {
+    if (isFrozen) return
     window.scrollTo(0, 0)
     onChangePane((currentPane) => ({ ...currentPane, path: nextPath, selectedPaths: [], selectionAnchor: undefined }))
   }
 
   function changeSort(column: SortColumn) {
+    if (isFrozen) return
     onChangePane((currentPane) => {
       if (!currentPane.hasSorted || column !== currentPane.sortColumn) {
         return { ...currentPane, sortColumn: column, sortDirection: 'asc', hasSorted: true }
@@ -87,7 +99,7 @@ export function FileBrowserPane({
   }
 
   function selectEntry(entry: FileEntry, event: MouseEvent<HTMLTableRowElement>) {
-    if (entry.type === 'unsupported') return
+    if (isFrozen || isNavigationOnly || entry.type === 'unsupported') return
     const { shiftKey, ctrlKey, metaKey } = event
     onChangePane((currentPane) => {
       if (shiftKey) {
@@ -137,52 +149,45 @@ export function FileBrowserPane({
       onFocusCapture={onInteraction}
       onPointerDownCapture={onInteraction}
     >
-      <nav aria-label="Current location" className="file-browser__breadcrumbs">
-        {breadcrumbs.map((breadcrumb, index) => (
-          <span className="file-browser__breadcrumb" key={breadcrumb.path}>
-            {index > 0 ? <span aria-hidden="true">/</span> : null}
-            {index === breadcrumbs.length - 1 ? (
-              <span aria-current="page">{breadcrumb.name}</span>
-            ) : (
-              <button className="file-browser__breadcrumb-link" onClick={() => navigateTo(breadcrumb.path)} type="button">
-                {breadcrumb.name}
-              </button>
-            )}
-          </span>
-        ))}
-      </nav>
-      <FileBrowserToolbar
-        key={`${pane.path}:${isOperationLocked}`}
-        canCreateFolder={pane.path !== '/'}
-        canDelete={canDelete}
-        canDownload={canDownload}
-        canRename={canRename}
-        canUpload={pane.path !== '/'}
-        isOperationLocked={isOperationLocked}
-        onCreateFolder={() => setIsNewFolderDialogOpen(true)}
-        onDelete={() => canDelete && setDeletePaths(pane.selectedPaths)}
-        onDownload={() => canDownload && downloadSelection(pane.selectedPaths)}
-        onRename={() => selectedEntry && canRename && setRenameItem(selectedEntry)}
-        onUploadFiles={() => fileInputRef.current?.click()}
-        onUploadFolder={() => folderInputRef.current?.click()}
-        position={position}
-      />
-      <input
-        aria-label="Choose files to upload"
-        className="file-browser__upload-input"
-        multiple
-        onChange={(event) => readUploadSelection(event, false)}
-        ref={fileInputRef}
-        type="file"
-      />
-      <input
-        aria-label="Choose a folder to upload"
-        className="file-browser__upload-input"
-        onChange={(event) => readUploadSelection(event, true)}
-        ref={folderInputRef}
-        type="file"
-      />
+      <FileBrowserLocation path={pane.path} isFrozen={isFrozen} onNavigate={navigateTo} />
+      <div hidden={isFrozen || isNavigationOnly}>
+        <FileBrowserToolbar
+          key={`${pane.path}:${isOperationLocked}`}
+          canCreateFolder={pane.path !== '/'}
+          canCopy={canCopy}
+          canDelete={canDelete}
+          canDownload={canDownload}
+          canRename={canRename}
+          canUpload={pane.path !== '/'}
+          isOperationLocked={isOperationLocked}
+          onCreateFolder={() => setIsNewFolderDialogOpen(true)}
+          onCopy={() => canCopy && onCopy(pane.selectedPaths)}
+          onDelete={() => canDelete && setDeletePaths(pane.selectedPaths)}
+          onDownload={() => canDownload && downloadSelection(pane.selectedPaths)}
+          onRename={() => selectedEntry && canRename && setRenameItem(selectedEntry)}
+          onUploadFiles={() => fileInputRef.current?.click()}
+          onUploadFolder={() => folderInputRef.current?.click()}
+          position={position}
+        />
+        <input
+          aria-label="Choose files to upload"
+          className="file-browser__upload-input"
+          multiple
+          onChange={(event) => readUploadSelection(event, false)}
+          ref={fileInputRef}
+          type="file"
+        />
+        <input
+          aria-label="Choose a folder to upload"
+          className="file-browser__upload-input"
+          onChange={(event) => readUploadSelection(event, true)}
+          ref={folderInputRef}
+          type="file"
+        />
+      </div>
       <FileBrowserListing
+        isFrozen={isFrozen}
+        isNavigationOnly={isNavigationOnly}
         entries={sortedEntries}
         hasError={hasError}
         isEmpty={isEmpty}

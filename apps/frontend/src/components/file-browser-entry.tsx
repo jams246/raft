@@ -5,11 +5,13 @@ import { formatFileSize } from './file-browser-list'
 interface FileBrowserEntryProps {
   entry: FileEntry
   isSelected: boolean
+  isSelectable: boolean
+  isNavigable: boolean
   onOpenDirectory: (path: string) => void
   onSelect: (entry: FileEntry, event: MouseEvent<HTMLTableRowElement>) => void
 }
 
-export function FileBrowserEntry({ entry, isSelected, onOpenDirectory, onSelect }: FileBrowserEntryProps) {
+export function FileBrowserEntry({ entry, isSelected, isSelectable, isNavigable, onOpenDirectory, onSelect }: FileBrowserEntryProps) {
   let icon = '⚠'
   if (entry.type === 'directory') icon = '📁'
   if (entry.type === 'file') icon = '📄'
@@ -20,19 +22,26 @@ export function FileBrowserEntry({ entry, isSelected, onOpenDirectory, onSelect 
   return (
     <tr
       className={rowClasses.join(' ')}
-      onClick={(event) => onSelect(entry, event)}
+      onClick={(event) => isSelectable && onSelect(entry, event)}
       onDoubleClick={() => {
-        if (entry.type === 'directory') onOpenDirectory(entry.path)
+        if (isNavigable && entry.type === 'directory') onOpenDirectory(entry.path)
       }}
     >
       <td>
-        {entry.type === 'unsupported' ? (
+        {entry.type === 'unsupported' || (!isSelectable && (!isNavigable || entry.type !== 'directory')) ? (
           <>
             <span aria-hidden="true">{icon}</span> {entry.name}
-            <span className="file-browser__status"> Unsupported</span>
+            {entry.type === 'unsupported' ? <span className="file-browser__status"> Unsupported</span> : null}
           </>
         ) : (
-          <button aria-pressed={isSelected} className="file-browser__entry-button" type="button">
+          <button
+            aria-pressed={isSelectable ? isSelected : undefined}
+            className="file-browser__entry-button"
+            onClick={(event) => {
+              if (!isSelectable && isNavigable && event.detail === 0) onOpenDirectory(entry.path)
+            }}
+            type="button"
+          >
             <span aria-hidden="true">{icon}</span> {entry.name}
           </button>
         )}

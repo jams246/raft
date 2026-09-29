@@ -13,8 +13,8 @@ export interface PreparedDestination {
   existing: boolean
 }
 
-export async function getUploadConflicts(destinationPath: string, items: UploadCandidate[]): Promise<UploadConflict[]> {
-  const targets = await resolveUploadTargets(destinationPath, items, 'rename')
+export async function getConflicts(destinationPath: string, items: ReplacementCandidate[]): Promise<UploadConflict[]> {
+  const targets = await resolveReplacementTargets(destinationPath, items, 'rename')
   return targets.flatMap((target, index) => (target.name === items[index].name ? [] : [{ name: items[index].name, suggestedName: target.name }]))
 }
 
@@ -47,7 +47,11 @@ export async function validateIncomingNames(stagingPath: string, items: UploadCa
   }
 }
 
-export async function resolveUploadTargets(destinationPath: string, items: UploadCandidate[], policy: UploadConflictPolicy): Promise<PreparedDestination[]> {
+export async function resolveReplacementTargets(
+  destinationPath: string,
+  items: ReplacementCandidate[],
+  policy: UploadConflictPolicy
+): Promise<PreparedDestination[]> {
   const claimsPath = await unusedInternalPath(destinationPath, 'tmp', randomUUID(), 0)
   await mkdir(claimsPath)
   const targets: PreparedDestination[] = []
@@ -123,7 +127,7 @@ export async function unusedInternalPath(parentPath: string, kind: 'tmp' | 'old'
   }
 }
 
-async function findAvailableName(destinationPath: string, item: UploadCandidate, claimsPath: string): Promise<string> {
+async function findAvailableName(destinationPath: string, item: ReplacementCandidate, claimsPath: string): Promise<string> {
   const extensionStart = item.type === 'file' ? item.name.lastIndexOf('.') : -1
   const hasExtension = extensionStart > 0
   const fullBaseName = hasExtension ? item.name.slice(0, extensionStart) : item.name
@@ -185,8 +189,11 @@ function isExists(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
 }
 
-export interface UploadCandidate {
+export interface ReplacementCandidate {
   name: string
   type: 'file' | 'directory'
+}
+
+export interface UploadCandidate extends ReplacementCandidate {
   files: Array<{ path: string }>
 }

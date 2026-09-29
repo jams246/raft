@@ -19,8 +19,23 @@ export class TransferService {
   }
 
   reserveUpload(total: number): TransferState {
+    return this.reserve('upload', total)
+  }
+
+  reserveCopy(total: number, destinationName: string): TransferState {
+    return this.reserve('copy', total, destinationName)
+  }
+
+  private reserve(kind: TransferState['kind'], total: number, destinationName?: string): TransferState {
     this.assertIdle()
-    const operation: TransferState = { id: randomUUID(), kind: 'upload', current: 0, total, status: 'running' }
+    const operation: TransferState = {
+      id: randomUUID(),
+      kind,
+      current: 0,
+      total,
+      status: 'running',
+      ...(destinationName ? { destinationName } : {})
+    }
     this.activeOperation = operation
     this.cancellation = new AbortController()
     this.events.next({ type: 'operation_started', operation })
@@ -28,7 +43,8 @@ export class TransferService {
   }
 
   progress(id: string, current: number, currentName?: string): void {
-    if (this.activeOperation?.id !== id || current <= this.activeOperation.current) return
+    if (this.activeOperation?.id !== id || current < this.activeOperation.current) return
+    if (current === this.activeOperation.current && currentName === this.activeOperation.currentName) return
     const operation: TransferState = { ...this.activeOperation, current, currentName }
     this.activeOperation = operation
     this.events.next({ type: 'operation_progress', operation })

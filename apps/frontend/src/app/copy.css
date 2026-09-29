@@ -1,0 +1,38 @@
+.copy-workflow {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.copy-workflow__summary {
+  margin: 0.5rem 0 0;
+}
+
+.copy-workflow__conflicts {
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.copy-workflow__policies {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.copy-workflow__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.copy-workflow__dialog {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: 85vh;
+  overflow: auto;
+  padding: 1.25rem;
+  border: 1px solid #c7d0d9;
+  border-radius: 0.5rem;
+  color: inherit;
+}
+
+.copy-workflow__dialog::backdrop {
+  background: rgb(23 33 43 / 55%);
+}

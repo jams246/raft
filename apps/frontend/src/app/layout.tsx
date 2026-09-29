@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import './upload.css'
+import './copy.css'
 
 export const metadata: Metadata = {
   title: 'File Browser',
