@@ -1,15 +1,36 @@
 import { HttpStatus, Injectable } from '@nestjs/common'
 import type { DirectoryListing, FileEntry } from '@raft/shared'
-import { lstat, readdir } from 'node:fs/promises'
+import { lstat, mkdir, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { resolveVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
+import { toFilesystemException } from './errors.js'
 
 @Injectable()
 export class FilesystemService {
   validateExistingPath(virtualPath: string): Promise<ValidatedPath> {
     return resolveVirtualPath(virtualPath)
+  }
+
+  async createDirectory(parentPath: string, name: string): Promise<void> {
+    if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\0')) {
+      throw new ApiException('invalid_request', 'The folder name is invalid.', HttpStatus.BAD_REQUEST)
+    }
+    if (parentPath === '/') {
+      throw new ApiException('protected_root', 'Folders cannot be created at the root.', HttpStatus.BAD_REQUEST)
+    }
+
+    const parent = await resolveVirtualPath(parentPath)
+    if (!parent.isDirectory) {
+      throw new ApiException('invalid_path', 'The requested path is invalid.', HttpStatus.BAD_REQUEST)
+    }
+
+    try {
+      await mkdir(join(parent.absolutePath, name))
+    } catch (error) {
+      throw toFilesystemException(error)
+    }
   }
 
   async listDirectory(virtualPath: string): Promise<DirectoryListing> {

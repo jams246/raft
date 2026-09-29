@@ -2,6 +2,7 @@ import { lstat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { HttpStatus } from '@nestjs/common'
+import { toFilesystemException } from './errors.js'
 
 export const DATA_ROOT = '/data'
 
@@ -58,15 +59,6 @@ async function inspectComponent(absolutePath: string) {
     }
     return metadata
   } catch (error) {
-    if (error instanceof ApiException) throw error
-
-    const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-    if (code === 'ENOENT' || code === 'ENOTDIR') {
-      throw new ApiException('not_found', 'The requested path was not found.', HttpStatus.NOT_FOUND)
-    }
-    if (code === 'EACCES' || code === 'EPERM') {
-      throw new ApiException('permission_denied', 'Permission denied.', HttpStatus.FORBIDDEN)
-    }
-    throw new ApiException('operation_failed', 'The operation failed.', HttpStatus.INTERNAL_SERVER_ERROR)
+    throw toFilesystemException(error)
   }
 }

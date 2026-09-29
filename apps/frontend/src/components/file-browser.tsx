@@ -2,6 +2,7 @@
 
 import type { DirectoryListing, FileEntry } from '@raft/shared'
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { NewFolderDialog } from './new-folder-dialog'
 import { formatFileSize, getSelectableRangePaths, sortFileEntries, type SortColumn, type SortDirection } from './file-browser-list'
 
 const actions = ['Upload', 'Download', 'Copy', 'Move', 'Rename', 'New Folder', 'Delete']
@@ -17,6 +18,7 @@ export function FileBrowser() {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false)
   const entries = listing?.entries ?? []
   const sortedEntries = useMemo(() => sortFileEntries(listing?.entries ?? [], sortColumn, sortDirection), [listing, sortColumn, sortDirection])
   const selectedPathSet = new Set(selectedPaths)
@@ -162,7 +164,7 @@ export function FileBrowser() {
 
         <div aria-label="File actions" className="file-browser__toolbar">
           {actions.map((action) => (
-            <button disabled key={action} type="button">
+            <button disabled={action !== 'New Folder' || path === '/'} key={action} onClick={() => setIsNewFolderDialogOpen(true)} type="button">
               {action}
             </button>
           ))}
@@ -225,6 +227,10 @@ export function FileBrowser() {
           )}
         </section>
       </section>
+
+      {isNewFolderDialogOpen && (
+        <NewFolderDialog onClose={() => setIsNewFolderDialogOpen(false)} onRefresh={() => setRetryCount((count) => count + 1)} parentPath={path} />
+      )}
 
       <section aria-label="Operation status" className="file-browser__operation-area" hidden>
         No active operation.
