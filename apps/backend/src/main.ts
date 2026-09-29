@@ -12,7 +12,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks()
 
   if (process.env.NODE_ENV === 'production') {
-    const exportDirectory = join(__dirname, '../../frontend/out')
+    const exportDirectory = join(import.meta.dirname, '../../frontend/out')
     app.useStaticAssets(exportDirectory)
   }
 

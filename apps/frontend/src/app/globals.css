@@ -70,12 +70,6 @@ button:disabled {
   border-bottom: 1px solid #e2e7ec;
 }
 
-.file-browser__breadcrumbs button {
-  border: 0;
-  padding-inline: 0.25rem;
-  color: #1559a6;
-}
-
 .file-browser__toolbar {
   gap: 0.4rem;
 }
@@ -87,7 +81,32 @@ button:disabled {
 
 .file-browser__list {
   flex: 1;
-  padding: 1.5rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.file-browser__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.file-browser__heading {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #d6dde4;
+  text-align: left;
+}
+
+.file-browser__entry td {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e2e7ec;
+}
+
+.file-browser__entry--unsupported {
+  color: #586674;
+}
+
+.file-browser__status {
+  margin-left: 0.75rem;
+  font-size: 0.9rem;
 }
 
 .file-browser__empty {
