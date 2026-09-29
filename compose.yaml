@@ -1,0 +1,61 @@
+name: raft
+
+x-workspace-user: &workspace-user '${LOCAL_UID:-0}:${LOCAL_GID:-0}'
+
+services:
+  tooling:
+    build:
+      context: .
+      target: tooling
+    user: *workspace-user
+    working_dir: /workspace
+    environment: &workspace-environment
+      PNPM_HOME: /workspace/.runtime/pnpm
+      pnpm_config_store_dir: /workspace/.runtime/pnpm/store
+      XDG_CACHE_HOME: /workspace/.runtime/pnpm/cache
+      npm_config_cache: /workspace/.runtime/pnpm/npm-cache
+      NEXT_TELEMETRY_DISABLED: '1'
+    volumes:
+      - .:/workspace
+    profiles: [tools]
+
+  frontend:
+    build:
+      context: .
+      target: tooling
+    user: *workspace-user
+    working_dir: /workspace
+    command: ['pnpm', 'dev:frontend']
+    environment: *workspace-environment
+    volumes:
+      - .:/workspace
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    profiles: [dev]
+
+  backend:
+    extends:
+      service: tooling
+    build:
+      context: .
+      target: tooling
+    user: *workspace-user
+    working_dir: /workspace
+    command: ['pnpm', 'dev:backend']
+    environment:
+      <<: *workspace-environment
+      PORT: '3001'
+    volumes:
+      - ./.runtime/fixtures:/data/Fixtures
+    expose:
+      - '3001'
+    profiles: [dev]
+
+  file-browser:
+    build:
+      context: .
+      target: production
+    ports:
+      - '3000:3000'

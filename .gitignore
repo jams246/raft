@@ -1,0 +1,6 @@
+.runtime/
+apps/frontend/out/
+apps/backend/dist/
+packages/shared/dist/
+.next/
+node_modules/

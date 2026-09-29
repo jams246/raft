@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f6f8;
+  color: #17212b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #c7d0d9;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+button:disabled {
+  color: #7c8791;
+  cursor: not-allowed;
+}
+
+.file-browser {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+  padding: 1.25rem clamp(1rem, 4vw, 3rem);
+  gap: 1rem;
+}
+
+.file-browser__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #d6dde4;
+}
+
+.file-browser__title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.file-browser__pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 22rem;
+  border: 1px solid #d6dde4;
+  border-radius: 0.5rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.file-browser__breadcrumbs,
+.file-browser__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e7ec;
+}
+
+.file-browser__breadcrumbs button {
+  border: 0;
+  padding-inline: 0.25rem;
+  color: #1559a6;
+}
+
+.file-browser__toolbar {
+  gap: 0.4rem;
+}
+
+.file-browser__toolbar button {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.file-browser__list {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.file-browser__empty {
+  margin: 0;
+  color: #586674;
+}
+
+.file-browser__operation-area {
+  min-height: 3.5rem;
+  border-top: 1px solid #d6dde4;
+  padding: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .file-browser__header {
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .file-browser__toolbar button {
+    flex: 1 1 40%;
+  }
+}

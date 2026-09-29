@@ -1,0 +1,26 @@
+{
+  "name": "raft",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=26.9.0 <27"
+  },
+  "scripts": {
+    "dev:frontend": "pnpm run build:shared && pnpm --filter @raft/frontend dev",
+    "dev:backend": "pnpm run build:shared && pnpm --filter @raft/backend dev",
+    "lint": "pnpm run build:shared && oxlint --type-aware",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "typecheck": "pnpm run build:shared && pnpm --filter @raft/backend typecheck && pnpm --filter @raft/frontend typecheck",
+    "test": "pnpm run build:shared && pnpm --filter @raft/backend build && node apps/backend/scripts/path-resolver-check.cjs",
+    "build": "pnpm run build:shared && pnpm --filter @raft/backend build && pnpm --filter @raft/frontend build",
+    "start": "pnpm --filter @raft/backend start",
+    "build:shared": "pnpm --filter @raft/shared build"
+  },
+  "devDependencies": {
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
+    "oxlint-tsgolint": "7.0.2003",
+    "typescript": "7.0.2"
+  }
+}

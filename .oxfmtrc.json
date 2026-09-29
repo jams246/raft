@@ -1,0 +1,25 @@
+{
+  "$schema": "https://oxc.rs/schema.json",
+  "ignorePatterns": [
+    ".runtime/**",
+    ".git/**",
+    "AGENTS.md",
+    ".idea/**",
+    ".next/**",
+    "**/.next/**",
+    "**/next-env.d.ts",
+    ".plan/**",
+    ".docs/**",
+    ".playwright-report-and-screenshots/**",
+    "**/node_modules/**",
+    "**/out/**",
+    "**/dist/**",
+    "**/fixtures/**",
+    "**/fixture-data/**"
+  ],
+  "printWidth": 160,
+  "semi": false,
+  "singleQuote": true,
+  "sortPackageJson": false,
+  "trailingComma": "none"
+}

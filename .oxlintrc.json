@@ -1,0 +1,17 @@
+{
+  "plugins": ["typescript", "react", "nextjs", "jsx-a11y"],
+  "rules": {
+    "typescript/no-floating-promises": "error"
+  },
+  "ignorePatterns": [
+    ".runtime/**",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/next-env.d.ts",
+    "**/out/**",
+    "**/dist/**",
+    "**/fixtures/**",
+    "**/fixture-data/**",
+    ".playwright-report-and-screenshots/**"
+  ]
+}
