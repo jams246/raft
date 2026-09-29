@@ -1,13 +1,15 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import type { TransferState } from '@raft/shared'
 import { CopyWorkflow } from './copy-workflow'
 import { FileBrowserPane } from './file-browser-pane'
 import { createFileBrowserPaneState, type FileBrowserPaneState } from './file-browser-pane-state'
 import { useTransferEvents } from './use-transfer-events'
 import { CancelUploadButton } from './cancel-upload-button'
 
-interface CopyWorkflowState {
+interface TransferWorkflowState {
+  kind: 'copy' | 'move'
   sourcePaths: string[]
   destinationPath: string
   destinationPane?: FileBrowserPaneState
@@ -18,13 +20,13 @@ export function FileBrowser() {
   const mostRecentlyInteractedPaneId = useRef(0)
   const [uploadPending, setUploadPending] = useState(false)
   const [uploadError, setUploadError] = useState('')
-  const [copyError, setCopyError] = useState('')
-  const [copyPending, setCopyPending] = useState(false)
-  const [copyWorkflow, setCopyWorkflow] = useState<CopyWorkflowState>()
+  const [transferError, setTransferError] = useState('')
+  const [pendingTransferKind, setPendingTransferKind] = useState<'copy' | 'move'>()
+  const [transferWorkflow, setTransferWorkflow] = useState<TransferWorkflowState>()
   const refreshCallbacks = useRef(new Map<number, () => void>())
   const nextPaneId = useRef(1)
   const uploadController = useRef<AbortController | undefined>(undefined)
-  const copyController = useRef<AbortController | undefined>(undefined)
+  const transferController = useRef<AbortController | undefined>(undefined)
 
   const registerListingRefresh = useCallback((paneId: number, refresh?: () => void) => {
     if (refresh) refreshCallbacks.current.set(paneId, refresh)
@@ -37,23 +39,24 @@ export function FileBrowser() {
     const controller = uploadController.current
     uploadController.current = undefined
     controller?.abort()
-    const pendingCopy = copyController.current
-    copyController.current = undefined
-    pendingCopy?.abort()
+    const pendingTransfer = transferController.current
+    transferController.current = undefined
+    pendingTransfer?.abort()
     setUploadPending(false)
-    setCopyPending(false)
+    setPendingTransferKind(undefined)
   }, [])
   const { operation, isConnected, notice } = useTransferEvents(refreshVisibleListings, finishTransfer)
 
-  const destinationPane = copyWorkflow?.destinationPane
+  const destinationPane = transferWorkflow?.destinationPane
   const visiblePanes = destinationPane ? [...panes, destinationPane] : panes
   const isDualPane = visiblePanes.length === 2
-  const isOperationLocked = !isConnected || operation !== null || uploadPending || copyPending
-  const displayNotice = notice || uploadError || copyError
+  const transferPending = pendingTransferKind !== undefined
+  const isOperationLocked = !isConnected || operation !== null || uploadPending || transferPending
+  const displayNotice = notice || uploadError || transferError
 
   function changePane(paneId: number, update: (pane: FileBrowserPaneState) => FileBrowserPaneState) {
     if (destinationPane?.id === paneId) {
-      setCopyWorkflow((workflow) => workflow?.destinationPane && { ...workflow, destinationPane: update(workflow.destinationPane) })
+      setTransferWorkflow((workflow) => workflow?.destinationPane && { ...workflow, destinationPane: update(workflow.destinationPane) })
       return
     }
     setPanes((currentPanes) => currentPanes.map((pane) => (pane.id === paneId ? update(pane) : pane)))
@@ -86,30 +89,31 @@ export function FileBrowser() {
     },
     [refreshVisibleListings]
   )
-  const beginCopyRequest = useCallback(
-    (controller: AbortController) => {
-      copyController.current = controller
+  const beginTransferRequest = useCallback(
+    (kind: 'copy' | 'move', controller: AbortController) => {
+      transferController.current = controller
       if (destinationPane) setPanes((currentPanes) => [...currentPanes, destinationPane])
-      setCopyWorkflow(undefined)
-      setCopyPending(true)
-      setCopyError('')
+      setTransferWorkflow(undefined)
+      setPendingTransferKind(kind)
+      setTransferError('')
     },
-    [destinationPane, setCopyWorkflow]
+    [destinationPane, setTransferWorkflow]
   )
-  const finishCopyRequest = useCallback(
+  const finishTransferRequest = useCallback(
     (controller: AbortController, error?: string) => {
-      if (copyController.current !== controller) return
-      copyController.current = undefined
-      setCopyPending(false)
-      setCopyError(error ?? '')
+      if (transferController.current !== controller) return
+      transferController.current = undefined
+      setPendingTransferKind(undefined)
+      setTransferError(error ?? '')
       refreshVisibleListings()
     },
     [refreshVisibleListings]
   )
 
-  function requestCopy(sourcePane: FileBrowserPaneState, sourcePaths: string[]) {
+  function requestTransfer(kind: 'copy' | 'move', sourcePane: FileBrowserPaneState, sourcePaths: string[]) {
     const destinationPane = panes.length === 2 ? panes.find((pane) => pane.id !== sourcePane.id) : undefined
-    setCopyWorkflow({
+    setTransferWorkflow({
+      kind,
       sourcePaths: [...sourcePaths],
       destinationPath: destinationPane?.path ?? '/',
       destinationPane: destinationPane ? undefined : createFileBrowserPaneState(nextPaneId.current++, '/')
@@ -121,13 +125,14 @@ export function FileBrowser() {
       <header className="file-browser__header">
         <div>
           <h1 className="file-browser__title">File Browser</h1>
-          {destinationPane ? (
+          {destinationPane && transferWorkflow ? (
             <p className="copy-workflow__summary">
-              Copying {copyWorkflow.sourcePaths.length} {copyWorkflow.sourcePaths.length === 1 ? 'item' : 'items'}. Choose a destination in the right pane.
+              {transferWorkflow.kind === 'move' ? 'Moving' : 'Copying'} {transferWorkflow.sourcePaths.length}{' '}
+              {transferWorkflow.sourcePaths.length === 1 ? 'item' : 'items'}. Choose a destination in the right pane.
             </p>
           ) : null}
         </div>
-        <button aria-pressed={isDualPane} className="file-browser__pane-toggle" disabled={Boolean(copyWorkflow)} onClick={toggleDualPane} type="button">
+        <button aria-pressed={isDualPane} className="file-browser__pane-toggle" disabled={Boolean(transferWorkflow)} onClick={toggleDualPane} type="button">
           Dual Pane
         </button>
       </header>
@@ -137,10 +142,11 @@ export function FileBrowser() {
             isFrozen={Boolean(destinationPane && pane.id !== destinationPane.id)}
             isNavigationOnly={pane.id === destinationPane?.id}
             isOperationLocked={isOperationLocked}
-            isCopyDestinationAllowed={panes.length === 1 || panes.find((candidate) => candidate.id !== pane.id)?.path !== '/'}
+            isTransferDestinationAllowed={panes.length === 1 || panes.find((candidate) => candidate.id !== pane.id)?.path !== '/'}
             key={pane.id}
             onChangePane={(update) => changePane(pane.id, update)}
-            onCopy={(sourcePaths) => requestCopy(pane, sourcePaths)}
+            onCopy={(sourcePaths) => requestTransfer('copy', pane, sourcePaths)}
+            onMove={(sourcePaths) => requestTransfer('move', pane, sourcePaths)}
             onInteraction={() => {
               mostRecentlyInteractedPaneId.current = pane.id
             }}
@@ -154,31 +160,28 @@ export function FileBrowser() {
           />
         ))}
       </div>
-      {copyWorkflow ? (
+      {transferWorkflow ? (
         <CopyWorkflow
           chooseDestination={Boolean(destinationPane)}
-          destinationPath={destinationPane?.path ?? copyWorkflow.destinationPath}
-          key={destinationPane?.path ?? copyWorkflow.destinationPath}
+          destinationPath={destinationPane?.path ?? transferWorkflow.destinationPath}
+          key={`${transferWorkflow.kind}:${destinationPane?.path ?? transferWorkflow.destinationPath}`}
+          kind={transferWorkflow.kind}
           isOperationLocked={isOperationLocked}
-          onCancel={() => setCopyWorkflow(undefined)}
-          onRequestFinished={finishCopyRequest}
-          onRequestStarted={beginCopyRequest}
-          sourcePaths={copyWorkflow.sourcePaths}
+          onCancel={() => setTransferWorkflow(undefined)}
+          onRequestFinished={finishTransferRequest}
+          onRequestStarted={beginTransferRequest}
+          sourcePaths={transferWorkflow.sourcePaths}
         />
       ) : null}
       <section
         aria-label="Operation status"
         aria-live="polite"
         className="file-browser__operation-area"
-        hidden={!operation && !displayNotice && !uploadPending && !copyPending}
+        hidden={!operation && !displayNotice && !uploadPending && !transferPending}
       >
         {operation ? (
           <>
-            <p>
-              {operation.kind === 'copy'
-                ? `Copying “${operation.currentName ?? 'items'}” to ${operation.destinationName ?? 'destination'}`
-                : `Uploading “${operation.currentName ?? 'items'}”`}
-            </p>
+            <p>{getTransferDescription(operation)}</p>
             <p>
               {operation.current} / {operation.total} items
             </p>
@@ -186,9 +189,15 @@ export function FileBrowser() {
           </>
         ) : null}
         {!operation && uploadPending ? <p>Starting upload…</p> : null}
-        {!operation && copyPending ? <p>Starting copy…</p> : null}
+        {!operation && transferPending ? <p>Starting {pendingTransferKind}…</p> : null}
         {displayNotice ? <p role="alert">{displayNotice}</p> : null}
       </section>
     </main>
   )
+}
+
+function getTransferDescription(operation: TransferState): string {
+  if (operation.kind === 'upload') return `Uploading “${operation.currentName ?? 'items'}”`
+  const action = operation.kind === 'move' ? 'Moving' : 'Copying'
+  return `${action} “${operation.currentName ?? 'items'}” to ${operation.destinationName ?? 'destination'}`
 }

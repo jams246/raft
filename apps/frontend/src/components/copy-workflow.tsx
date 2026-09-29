@@ -4,16 +4,18 @@ import type { ConflictPolicy, CopyConflict } from '@raft/shared'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 interface CopyWorkflowProps {
+  kind: 'copy' | 'move'
   sourcePaths: string[]
   destinationPath: string
   chooseDestination: boolean
   isOperationLocked: boolean
   onCancel: () => void
-  onRequestStarted: (controller: AbortController) => void
+  onRequestStarted: (kind: 'copy' | 'move', controller: AbortController) => void
   onRequestFinished: (controller: AbortController, error?: string) => void
 }
 
 export function CopyWorkflow({
+  kind,
   sourcePaths,
   destinationPath,
   chooseDestination,
@@ -22,6 +24,7 @@ export function CopyWorkflow({
   onRequestStarted,
   onRequestFinished
 }: CopyWorkflowProps) {
+  const actionLabel = kind === 'move' ? 'Move' : 'Copy'
   const [conflicts, setConflicts] = useState<CopyConflict[]>()
   const [policy, setPolicy] = useState<ConflictPolicy>('rename')
   const [isChecking, setIsChecking] = useState(false)
@@ -35,26 +38,26 @@ export function CopyWorkflow({
     operationLocked.current = isOperationLocked
   }, [isOperationLocked])
 
-  const startCopy = useCallback(
+  const startTransfer = useCallback(
     async (conflictPolicy: ConflictPolicy) => {
       if (operationLocked.current || requestStarted.current) return
       requestStarted.current = true
       const controller = new AbortController()
-      onRequestStarted(controller)
+      onRequestStarted(kind, controller)
       try {
-        const response = await fetch('/api/copy', {
+        const response = await fetch(`/api/${kind}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: controller.signal,
           body: JSON.stringify({ sources: sourcePaths, destination: destinationPath, conflictPolicy })
         })
-        if (!response.ok) throw new Error(await getResponseMessage(response, 'Unable to copy selected items.'))
+        if (!response.ok) throw new Error(await getResponseMessage(response, `Unable to ${kind} selected items.`))
         onRequestFinished(controller)
       } catch (error) {
-        onRequestFinished(controller, error instanceof Error ? error.message : 'Unable to copy selected items.')
+        onRequestFinished(controller, error instanceof Error ? error.message : `Unable to ${kind} selected items.`)
       }
     },
-    [destinationPath, onRequestFinished, onRequestStarted, sourcePaths]
+    [destinationPath, kind, onRequestFinished, onRequestStarted, sourcePaths]
   )
 
   const checkConflicts = useCallback(async () => {
@@ -64,26 +67,26 @@ export function CopyWorkflow({
     setIsChecking(true)
     setErrorMessage('')
     try {
-      const response = await fetch('/api/copy/preflight', {
+      const response = await fetch(`/api/${kind}/preflight`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sources: sourcePaths, destination: destinationPath }),
         signal: controller.signal
       })
-      if (!response.ok) throw new Error(await getResponseMessage(response, 'Unable to check copy conflicts.'))
+      if (!response.ok) throw new Error(await getResponseMessage(response, `Unable to check ${kind} conflicts.`))
       const result = (await response.json()) as { conflicts: CopyConflict[] }
       if (controller.signal.aborted) return
       setConflicts(result.conflicts)
-      if (result.conflicts.length === 0) await startCopy('rename')
+      if (result.conflicts.length === 0) await startTransfer('rename')
     } catch (error) {
-      if (!controller.signal.aborted) setErrorMessage(error instanceof Error ? error.message : 'Unable to check copy conflicts.')
+      if (!controller.signal.aborted) setErrorMessage(error instanceof Error ? error.message : `Unable to check ${kind} conflicts.`)
     } finally {
       if (preflightController.current === controller) {
         if (!controller.signal.aborted && !requestStarted.current) setIsChecking(false)
         preflightController.current = undefined
       }
     }
-  }, [destinationPath, sourcePaths, startCopy])
+  }, [kind, destinationPath, sourcePaths, startTransfer])
 
   useEffect(() => {
     let startCheckTimer: number | undefined
@@ -98,7 +101,7 @@ export function CopyWorkflow({
   }, [checkConflicts, chooseDestination])
 
   function copyHere() {
-    if (conflicts) void startCopy(policy)
+    if (conflicts) void startTransfer(policy)
     else void checkConflicts()
   }
 
@@ -139,8 +142,8 @@ export function CopyWorkflow({
         }}
         ref={dialogRef}
       >
-        <h2 id="copy-workflow-title">Copy</h2>
-        {isChecking && !conflicts ? <p aria-live="polite">Checking copy conflicts…</p> : null}
+        <h2 id="copy-workflow-title">{actionLabel}</h2>
+        {isChecking && !conflicts ? <p aria-live="polite">Checking {kind} conflicts…</p> : null}
         {conflictControls}
         {errorMessage ? <p role="alert">{errorMessage}</p> : null}
         <div className="copy-workflow__actions">
@@ -149,7 +152,7 @@ export function CopyWorkflow({
           </button>
           {conflicts ? (
             <button disabled={isOperationLocked} onClick={copyHere} type="button">
-              Copy
+              {actionLabel}
             </button>
           ) : null}
           {errorMessage ? (
@@ -163,9 +166,9 @@ export function CopyWorkflow({
   }
 
   return (
-    <section aria-label="Copy controls" className="copy-workflow">
-      {isChecking ? <p aria-live="polite">Checking copy conflicts…</p> : null}
-      {destinationPath === '/' ? <p>Choose a folder under My Files to copy into.</p> : null}
+    <section aria-label={`${actionLabel} controls`} className="copy-workflow">
+      {isChecking ? <p aria-live="polite">Checking {kind} conflicts…</p> : null}
+      {destinationPath === '/' ? <p>Choose a folder under My Files to {kind} into.</p> : null}
       {conflictControls}
       {errorMessage ? <p role="alert">{errorMessage}</p> : null}
       <div className="copy-workflow__actions">
@@ -173,7 +176,7 @@ export function CopyWorkflow({
           Cancel
         </button>
         <button disabled={isChecking || isOperationLocked || destinationPath === '/'} onClick={copyHere} type="button">
-          {conflicts ? 'Copy' : 'Copy Here'}
+          {conflicts ? actionLabel : `${actionLabel} Here`}
         </button>
         {errorMessage ? (
           <button disabled={isChecking || isOperationLocked} onClick={() => void checkConflicts()} type="button">

@@ -26,6 +26,10 @@ export class TransferService {
     return this.reserve('copy', total, destinationName)
   }
 
+  reserveMove(total: number, destinationName: string): TransferState {
+    return this.reserve('move', total, destinationName)
+  }
+
   private reserve(kind: TransferState['kind'], total: number, destinationName?: string): TransferState {
     this.assertIdle()
     const operation: TransferState = {

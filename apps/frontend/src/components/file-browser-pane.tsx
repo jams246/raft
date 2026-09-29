@@ -23,12 +23,13 @@ interface FileBrowserPaneProps {
   pane: FileBrowserPaneState
   position: PanePosition
   isOperationLocked: boolean
-  isCopyDestinationAllowed: boolean
+  isTransferDestinationAllowed: boolean
   onChangePane: (update: (pane: FileBrowserPaneState) => FileBrowserPaneState) => void
   onInteraction: () => void
   onRegisterListingRefresh: (paneId: number, refresh?: () => void) => void
   onRefreshVisible: () => void
   onCopy: (sourcePaths: string[]) => void
+  onMove: (sourcePaths: string[]) => void
   onUploadError: (error: string) => void
   onUploadRequestStarted: (controller: AbortController) => void
   onUploadRequestFinished: (controller: AbortController, error?: string) => void
@@ -40,12 +41,13 @@ export function FileBrowserPane({
   pane,
   position,
   isOperationLocked,
-  isCopyDestinationAllowed,
+  isTransferDestinationAllowed,
   onChangePane,
   onInteraction,
   onRegisterListingRefresh,
   onRefreshVisible,
   onCopy,
+  onMove,
   onUploadError,
   onUploadRequestStarted,
   onUploadRequestFinished
@@ -69,7 +71,7 @@ export function FileBrowserPane({
     pane.selectedPaths.length > 0 &&
     pane.selectedPaths.every((selectedPath) => entries.some((entry) => entry.path === selectedPath && entry.type !== 'unsupported' && !entry.protectedRoot))
 
-  const canCopy = canDelete && isCopyDestinationAllowed && !isLoading && !hasError
+  const canTransfer = canDelete && isTransferDestinationAllowed && !isLoading && !hasError
 
   useEffect(() => folderInputRef.current?.setAttribute('webkitdirectory', ''), [])
   useLayoutEffect(() => {
@@ -154,14 +156,15 @@ export function FileBrowserPane({
         <FileBrowserToolbar
           key={`${pane.path}:${isOperationLocked}`}
           canCreateFolder={pane.path !== '/'}
-          canCopy={canCopy}
+          canTransfer={canTransfer}
           canDelete={canDelete}
           canDownload={canDownload}
           canRename={canRename}
           canUpload={pane.path !== '/'}
           isOperationLocked={isOperationLocked}
           onCreateFolder={() => setIsNewFolderDialogOpen(true)}
-          onCopy={() => canCopy && onCopy(pane.selectedPaths)}
+          onCopy={() => canTransfer && onCopy(pane.selectedPaths)}
+          onMove={() => canTransfer && onMove(pane.selectedPaths)}
           onDelete={() => canDelete && setDeletePaths(pane.selectedPaths)}
           onDownload={() => canDownload && downloadSelection(pane.selectedPaths)}
           onRename={() => selectedEntry && canRename && setRenameItem(selectedEntry)}

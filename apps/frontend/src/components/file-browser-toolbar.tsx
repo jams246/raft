@@ -8,13 +8,14 @@ interface FileBrowserToolbarProps {
   canCreateFolder: boolean
   canDelete: boolean
   canDownload: boolean
-  canCopy: boolean
+  canTransfer: boolean
   canRename: boolean
   isOperationLocked: boolean
   onCreateFolder: () => void
   onDelete: () => void
   onDownload: () => void
   onCopy: () => void
+  onMove: () => void
   onRename: () => void
   onUploadFiles: () => void
   onUploadFolder: () => void
@@ -26,13 +27,14 @@ export function FileBrowserToolbar({
   canCreateFolder,
   canDelete,
   canDownload,
-  canCopy,
+  canTransfer,
   canRename,
   isOperationLocked,
   onCreateFolder,
   onDelete,
   onDownload,
   onCopy,
+  onMove,
   onRename,
   onUploadFiles,
   onUploadFolder
@@ -43,8 +45,8 @@ export function FileBrowserToolbar({
 
   const actions = [
     { label: 'Download', disabled: !canDownload, onClick: onDownload },
-    { label: copyLabel, disabled: isOperationLocked || !canCopy, onClick: onCopy },
-    { label: moveLabel, disabled: true },
+    { label: copyLabel, disabled: isOperationLocked || !canTransfer, onClick: onCopy },
+    { label: moveLabel, disabled: isOperationLocked || !canTransfer, onClick: onMove },
     { label: 'Rename', disabled: isOperationLocked || !canRename, onClick: onRename },
     { label: 'New Folder', disabled: isOperationLocked || !canCreateFolder, onClick: onCreateFolder },
     { label: 'Delete', disabled: isOperationLocked || !canDelete, onClick: onDelete }
