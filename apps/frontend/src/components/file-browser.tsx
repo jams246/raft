@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { FileBrowserEntry } from './file-browser-entry'
 import { NewFolderDialog } from './new-folder-dialog'
 import { RenameDialog } from './rename-dialog'
+import { DeleteConfirmationDialog } from './delete-confirmation-dialog'
 import { FileBrowserToolbar } from './file-browser-toolbar'
 import { getSelectableRangePaths, sortFileEntries, type SortColumn, type SortDirection } from './file-browser-list'
 
@@ -20,6 +21,7 @@ export function FileBrowser() {
   const [hasError, setHasError] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false)
+  const [deletePaths, setDeletePaths] = useState<string[]>()
   const [renameItem, setRenameItem] = useState<FileEntry>()
   const entries = listing?.entries ?? []
   const sortedEntries = useMemo(() => sortFileEntries(listing?.entries ?? [], sortColumn, sortDirection), [listing, sortColumn, sortDirection])
@@ -28,6 +30,10 @@ export function FileBrowser() {
   const sortIndicator = sortDirection === 'asc' ? '↑' : '↓'
   const selectedEntry = selectedPaths.length === 1 ? entries.find((entry) => entry.path === selectedPaths[0]) : undefined
   const canRename = path !== '/' && Boolean(selectedEntry && selectedEntry.type !== 'unsupported' && !selectedEntry.protectedRoot)
+  const canDelete =
+    path !== '/' &&
+    selectedPaths.length > 0 &&
+    selectedPaths.every((selectedPath) => entries.some((entry) => entry.path === selectedPath && entry.type !== 'unsupported' && !entry.protectedRoot))
 
   function clearSelection() {
     if (selectedPaths.length > 0) setSelectedPaths([])
@@ -138,8 +144,10 @@ export function FileBrowser() {
 
         <FileBrowserToolbar
           canCreateFolder={path !== '/'}
+          canDelete={canDelete}
           canRename={canRename}
           onCreateFolder={() => setIsNewFolderDialogOpen(true)}
+          onDelete={() => canDelete && setDeletePaths(selectedPaths)}
           onRename={openRenameDialog}
         />
 
@@ -220,6 +228,16 @@ export function FileBrowser() {
           onClose={() => setRenameItem(undefined)}
           onRefresh={() => setRetryCount((count) => count + 1)}
           onSuccess={clearSelection}
+        />
+      )}
+      {deletePaths && (
+        <DeleteConfirmationDialog
+          onClose={() => setDeletePaths(undefined)}
+          onFinish={() => {
+            clearSelection()
+            setRetryCount((count) => count + 1)
+          }}
+          paths={deletePaths}
         />
       )}
 

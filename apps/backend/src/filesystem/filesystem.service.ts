@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common'
 import type { DirectoryListing, FileEntry } from '@raft/shared'
-import { lstat, mkdir, readdir, rename } from 'node:fs/promises'
+import { lstat, mkdir, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { resolveVirtualPath, validateVirtualPath } from './paths.js'
@@ -13,7 +13,48 @@ export class FilesystemService {
   private mutationQueue = Promise.resolve()
 
   async validateExistingPath(virtualPath: string): Promise<ValidatedPath> {
-    const validatedPath = await resolveVirtualPath(virtualPath)
+    return this.validateSupportedPath(await resolveVirtualPath(virtualPath))
+  }
+
+  async deletePaths(virtualPaths: string[]): Promise<void> {
+    if (virtualPaths.length === 0) {
+      throw new ApiException('invalid_request', 'Select at least one item to delete.', HttpStatus.BAD_REQUEST)
+    }
+
+    await this.runMutation(async () => {
+      const selectedPaths = [...new Set(virtualPaths)]
+      const validatedPaths = await Promise.all(
+        selectedPaths.map(async (virtualPath) => {
+          const components = validateVirtualPath(virtualPath)
+          const resolvedPath = await resolveVirtualPath(virtualPath)
+          if (components.length <= 1) {
+            throw new ApiException('protected_root', 'Root entries cannot be deleted.', HttpStatus.BAD_REQUEST)
+          }
+          return this.validateSupportedPath(resolvedPath)
+        })
+      )
+      const pathsToDelete = validatedPaths.filter(
+        (candidate) =>
+          !validatedPaths.some((parent) => candidate.virtualPath !== parent.virtualPath && candidate.virtualPath.startsWith(`${parent.virtualPath}/`))
+      )
+
+      let deletedCount = 0
+      for (const validatedPath of pathsToDelete) {
+        try {
+          await rm(validatedPath.absolutePath, { recursive: true })
+          deletedCount += 1
+        } catch {
+          throw new ApiException(
+            'operation_failed',
+            `Deletion stopped after deleting ${deletedCount} of ${pathsToDelete.length} selected items. Selected content may also be partially deleted.`,
+            HttpStatus.INTERNAL_SERVER_ERROR
+          )
+        }
+      }
+    })
+  }
+
+  private async validateSupportedPath(validatedPath: ValidatedPath): Promise<ValidatedPath> {
     if (validatedPath.isDirectory) {
       try {
         await this.validateDirectoryTree(validatedPath.absolutePath)

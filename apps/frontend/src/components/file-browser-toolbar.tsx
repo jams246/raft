@@ -1,11 +1,13 @@
 interface FileBrowserToolbarProps {
   canCreateFolder: boolean
+  canDelete: boolean
   canRename: boolean
   onCreateFolder: () => void
+  onDelete: () => void
   onRename: () => void
 }
 
-export function FileBrowserToolbar({ canCreateFolder, canRename, onCreateFolder, onRename }: FileBrowserToolbarProps) {
+export function FileBrowserToolbar({ canCreateFolder, canDelete, canRename, onCreateFolder, onDelete, onRename }: FileBrowserToolbarProps) {
   const actions = [
     { label: 'Upload', disabled: true },
     { label: 'Download', disabled: true },
@@ -13,7 +15,7 @@ export function FileBrowserToolbar({ canCreateFolder, canRename, onCreateFolder,
     { label: 'Move', disabled: true },
     { label: 'Rename', disabled: !canRename, onClick: onRename },
     { label: 'New Folder', disabled: !canCreateFolder, onClick: onCreateFolder },
-    { label: 'Delete', disabled: true }
+    { label: 'Delete', disabled: !canDelete, onClick: onDelete }
   ]
 
   return (

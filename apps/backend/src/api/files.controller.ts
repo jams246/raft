@@ -24,4 +24,19 @@ export class FilesController {
 
     return this.filesystemService.renamePath(body.path, body.name)
   }
+
+  @Post('delete')
+  deletePaths(@Body() body: unknown): Promise<void> {
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('paths' in body) ||
+      !Array.isArray(body.paths) ||
+      !body.paths.every((path: unknown) => typeof path === 'string')
+    ) {
+      throw new ApiException('invalid_request', 'The request is invalid.', HttpStatus.BAD_REQUEST)
+    }
+
+    return this.filesystemService.deletePaths(body.paths)
+  }
 }
