@@ -70,6 +70,25 @@ button:disabled {
   border-bottom: 1px solid #e2e7ec;
 }
 
+.file-browser__breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-browser__breadcrumb-link,
+.file-browser__entry-button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.file-browser__breadcrumb-link {
+  color: #165f9f;
+}
+
 .file-browser__toolbar {
   gap: 0.4rem;
 }
@@ -95,9 +114,23 @@ button:disabled {
   text-align: left;
 }
 
+.file-browser__size-heading,
+.file-browser__size {
+  width: 8rem;
+  text-align: right;
+}
+
 .file-browser__entry td {
   padding: 0.75rem 0;
   border-bottom: 1px solid #e2e7ec;
+}
+
+.file-browser__entry--selected {
+  background: #e8f1fb;
+}
+
+.file-browser__entry-button {
+  text-align: left;
 }
 
 .file-browser__entry--unsupported {

@@ -4,6 +4,7 @@ export interface FileEntry {
   name: string
   path: string
   type: FileEntryType
+  size?: number
   protectedRoot?: boolean
 }
 

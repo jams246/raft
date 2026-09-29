@@ -9,10 +9,10 @@ export class FilesController {
 
   @Get('files')
   listFiles(@Query('path') virtualPath: string | string[] | undefined): Promise<DirectoryListing> {
-    if (virtualPath !== '/') {
+    if (typeof virtualPath !== 'string') {
       throw new ApiException('invalid_path', 'The requested path is invalid.', HttpStatus.BAD_REQUEST)
     }
 
-    return this.filesystemService.listRoots()
+    return this.filesystemService.listDirectory(virtualPath)
   }
 }

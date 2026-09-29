@@ -4,9 +4,13 @@ import type { DirectoryListing, FileEntry } from '@raft/shared'
 import { useEffect, useState } from 'react'
 
 const actions = ['Upload', 'Download', 'Copy', 'Move', 'Rename', 'New Folder', 'Delete']
+const sizeUnits = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+const sizeFormatter = new Intl.NumberFormat('en', { maximumFractionDigits: 1 })
 
 export function FileBrowser() {
   const [listing, setListing] = useState<DirectoryListing>()
+  const [path, setPath] = useState('/')
+  const [selectedPath, setSelectedPath] = useState<string>()
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
@@ -14,12 +18,13 @@ export function FileBrowser() {
   useEffect(() => {
     const abortController = new AbortController()
 
-    async function loadRootListing() {
+    async function loadDirectoryListing() {
       setIsLoading(true)
       setHasError(false)
 
       try {
-        const response = await fetch('/api/files?path=/', { signal: abortController.signal })
+        const query = new URLSearchParams({ path })
+        const response = await fetch(`/api/files?${query}`, { signal: abortController.signal })
         if (!response.ok) throw new Error('Listing request failed.')
 
         setListing((await response.json()) as DirectoryListing)
@@ -30,27 +35,60 @@ export function FileBrowser() {
       }
     }
 
-    void loadRootListing()
+    void loadDirectoryListing()
     return () => abortController.abort()
-  }, [retryCount])
+  }, [path, retryCount])
+
+  function navigateTo(nextPath: string) {
+    setSelectedPath(undefined)
+    setPath(nextPath)
+  }
 
   function renderEntry(entry: FileEntry) {
     let icon = '⚠'
     if (entry.type === 'directory') icon = '📁'
     if (entry.type === 'file') icon = '📄'
+    const isSelected = selectedPath === entry.path
+    const rowClasses = ['file-browser__entry']
+    if (entry.type === 'unsupported') rowClasses.push('file-browser__entry--unsupported')
+    if (isSelected) rowClasses.push('file-browser__entry--selected')
 
     return (
-      <tr className={entry.type === 'unsupported' ? 'file-browser__entry file-browser__entry--unsupported' : 'file-browser__entry'} key={entry.path}>
+      <tr
+        className={rowClasses.join(' ')}
+        key={entry.path}
+        onClick={() => {
+          if (entry.type !== 'unsupported') setSelectedPath(entry.path)
+        }}
+        onDoubleClick={() => {
+          if (entry.type === 'directory') navigateTo(entry.path)
+        }}
+      >
         <td>
-          <span aria-hidden="true">{icon}</span> {entry.name}
-          {entry.type === 'unsupported' ? <span className="file-browser__status"> Unsupported</span> : null}
+          {entry.type === 'unsupported' ? (
+            <>
+              <span aria-hidden="true">{icon}</span> {entry.name}
+              <span className="file-browser__status"> Unsupported</span>
+            </>
+          ) : (
+            <button aria-pressed={isSelected} className="file-browser__entry-button" type="button">
+              <span aria-hidden="true">{icon}</span> {entry.name}
+            </button>
+          )}
         </td>
+        <td className="file-browser__size">{entry.type === 'file' && entry.size !== undefined ? formatFileSize(entry.size) : '—'}</td>
       </tr>
     )
   }
 
-  const rootEntries = listing?.entries ?? []
-  const hasRootDirectories = rootEntries.some((entry) => entry.type === 'directory')
+  const entries = listing?.entries ?? []
+  const breadcrumbs = [{ name: 'My Files', path: '/' }]
+  let breadcrumbPath = ''
+  for (const name of path.split('/').filter(Boolean)) {
+    breadcrumbPath += `/${name}`
+    breadcrumbs.push({ name, path: breadcrumbPath })
+  }
+  const isEmpty = path === '/' ? !entries.some((entry) => entry.type === 'directory') : entries.length === 0
 
   return (
     <main className="file-browser">
@@ -63,7 +101,22 @@ export function FileBrowser() {
 
       <section aria-label="File pane" className="file-browser__pane">
         <nav aria-label="Current location" className="file-browser__breadcrumbs">
-          <span aria-current="page">My Files</span>
+          {breadcrumbs.map((breadcrumb, index) => {
+            const isCurrent = index === breadcrumbs.length - 1
+
+            return (
+              <span className="file-browser__breadcrumb" key={breadcrumb.path}>
+                {index > 0 ? <span aria-hidden="true">/</span> : null}
+                {isCurrent ? (
+                  <span aria-current="page">{breadcrumb.name}</span>
+                ) : (
+                  <button className="file-browser__breadcrumb-link" onClick={() => navigateTo(breadcrumb.path)} type="button">
+                    {breadcrumb.name}
+                  </button>
+                )}
+              </span>
+            )
+          })}
         </nav>
 
         <div aria-label="File actions" className="file-browser__toolbar">
@@ -77,37 +130,46 @@ export function FileBrowser() {
         <section className="file-browser__list" aria-label="Files">
           {isLoading ? (
             <p aria-live="polite" className="file-browser__empty">
-              Loading folders…
+              Loading directory…
             </p>
           ) : null}
           {hasError ? (
             <div className="file-browser__empty" role="alert">
-              <p>Unable to load folders. Check the server connection and try again.</p>
+              <p>Unable to load this directory. Check the server connection and try again.</p>
               <button onClick={() => setRetryCount((count) => count + 1)} type="button">
                 Try again
               </button>
             </div>
           ) : null}
-          {listing && !isLoading && !hasError ? (
+          {listing && !isLoading && !hasError && (
             <>
-              <table aria-label="Files in My Files" className="file-browser__table">
+              <table aria-label={`Files in ${path}`} className="file-browser__table">
                 <thead>
                   <tr>
                     <th className="file-browser__heading" scope="col">
                       Name
                     </th>
+                    <th className="file-browser__heading file-browser__size-heading" scope="col">
+                      Size
+                    </th>
                   </tr>
                 </thead>
-                <tbody>{rootEntries.map(renderEntry)}</tbody>
+                <tbody>{entries.map(renderEntry)}</tbody>
               </table>
-              {!hasRootDirectories ? (
+              {isEmpty && (
                 <div className="file-browser__empty">
-                  <p>No folders available.</p>
-                  <p>Mount one or more directories under /data to make them available here.</p>
+                  {path === '/' ? (
+                    <>
+                      <p>No folders available.</p>
+                      <p>Mount one or more directories under /data to make them available here.</p>
+                    </>
+                  ) : (
+                    <p>This directory is empty.</p>
+                  )}
                 </div>
-              ) : null}
+              )}
             </>
-          ) : null}
+          )}
         </section>
       </section>
 
@@ -116,4 +178,16 @@ export function FileBrowser() {
       </section>
     </main>
   )
+}
+
+function formatFileSize(size: number): string {
+  let value = size
+  let unitIndex = 0
+
+  while (value >= 1024 && unitIndex < sizeUnits.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  return `${sizeFormatter.format(value)} ${sizeUnits[unitIndex]}`
 }
