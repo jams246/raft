@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 interface FileBrowserToolbarProps {
+  position: 'left' | 'right'
   canUpload: boolean
   canCreateFolder: boolean
   canDelete: boolean
@@ -18,6 +19,7 @@ interface FileBrowserToolbarProps {
 }
 
 export function FileBrowserToolbar({
+  position,
   canUpload,
   canCreateFolder,
   canDelete,
@@ -32,11 +34,13 @@ export function FileBrowserToolbar({
   onUploadFolder
 }: FileBrowserToolbarProps) {
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false)
+  const copyLabel = position === 'left' ? 'Copy →' : '← Copy'
+  const moveLabel = position === 'left' ? 'Move →' : '← Move'
 
   const actions = [
     { label: 'Download', disabled: !canDownload, onClick: onDownload },
-    { label: 'Copy', disabled: true },
-    { label: 'Move', disabled: true },
+    { label: copyLabel, disabled: true },
+    { label: moveLabel, disabled: true },
     { label: 'Rename', disabled: isOperationLocked || !canRename, onClick: onRename },
     { label: 'New Folder', disabled: isOperationLocked || !canCreateFolder, onClick: onCreateFolder },
     { label: 'Delete', disabled: isOperationLocked || !canDelete, onClick: onDelete }
