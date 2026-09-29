@@ -77,7 +77,8 @@ button:disabled {
 }
 
 .file-browser__breadcrumb-link,
-.file-browser__entry-button {
+.file-browser__entry-button,
+.file-browser__sort-button {
   min-height: 0;
   padding: 0;
   border: 0;
@@ -87,6 +88,16 @@ button:disabled {
 
 .file-browser__breadcrumb-link {
   color: #165f9f;
+}
+
+.file-browser__sort-button {
+  text-align: inherit;
+}
+
+.file-browser__sort-button:focus-visible,
+.file-browser__entry-button:focus-visible {
+  outline: 2px solid #165f9f;
+  outline-offset: 2px;
 }
 
 .file-browser__toolbar {

@@ -1,19 +1,32 @@
 'use client'
 
 import type { DirectoryListing, FileEntry } from '@raft/shared'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { formatFileSize, getSelectableRangePaths, sortFileEntries, type SortColumn, type SortDirection } from './file-browser-list'
 
 const actions = ['Upload', 'Download', 'Copy', 'Move', 'Rename', 'New Folder', 'Delete']
-const sizeUnits = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-const sizeFormatter = new Intl.NumberFormat('en', { maximumFractionDigits: 1 })
 
 export function FileBrowser() {
   const [listing, setListing] = useState<DirectoryListing>()
   const [path, setPath] = useState('/')
-  const [selectedPath, setSelectedPath] = useState<string>()
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([])
+  const [selectionAnchor, setSelectionAnchor] = useState<string>()
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [hasSorted, setHasSorted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  const entries = listing?.entries ?? []
+  const sortedEntries = useMemo(() => sortFileEntries(listing?.entries ?? [], sortColumn, sortDirection), [listing, sortColumn, sortDirection])
+  const selectedPathSet = new Set(selectedPaths)
+  const ariaSortDirection = sortDirection === 'asc' ? 'ascending' : 'descending'
+  const sortIndicator = sortDirection === 'asc' ? '↑' : '↓'
+
+  function clearSelection() {
+    if (selectedPaths.length > 0) setSelectedPaths([])
+    setSelectionAnchor(undefined)
+  }
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -40,15 +53,46 @@ export function FileBrowser() {
   }, [path, retryCount])
 
   function navigateTo(nextPath: string) {
-    setSelectedPath(undefined)
+    clearSelection()
+    window.scrollTo(0, 0)
     setPath(nextPath)
+  }
+
+  function changeSort(column: SortColumn) {
+    if (!hasSorted || column !== sortColumn) {
+      setSortColumn(column)
+      setSortDirection('asc')
+      setHasSorted(true)
+      return
+    }
+
+    setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))
+  }
+
+  function selectEntry(entry: FileEntry, event: MouseEvent<HTMLTableRowElement>) {
+    if (entry.type === 'unsupported') return
+
+    if (event.shiftKey) {
+      setSelectedPaths(getSelectableRangePaths(sortedEntries, selectionAnchor, entry.path))
+      if (!sortedEntries.some((item) => item.path === selectionAnchor)) setSelectionAnchor(entry.path)
+      return
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      setSelectedPaths((paths) => (paths.includes(entry.path) ? paths.filter((selectedPath) => selectedPath !== entry.path) : [...paths, entry.path]))
+      setSelectionAnchor(entry.path)
+      return
+    }
+
+    setSelectedPaths([entry.path])
+    setSelectionAnchor(entry.path)
   }
 
   function renderEntry(entry: FileEntry) {
     let icon = '⚠'
     if (entry.type === 'directory') icon = '📁'
     if (entry.type === 'file') icon = '📄'
-    const isSelected = selectedPath === entry.path
+    const isSelected = selectedPathSet.has(entry.path)
     const rowClasses = ['file-browser__entry']
     if (entry.type === 'unsupported') rowClasses.push('file-browser__entry--unsupported')
     if (isSelected) rowClasses.push('file-browser__entry--selected')
@@ -57,9 +101,7 @@ export function FileBrowser() {
       <tr
         className={rowClasses.join(' ')}
         key={entry.path}
-        onClick={() => {
-          if (entry.type !== 'unsupported') setSelectedPath(entry.path)
-        }}
+        onClick={(event) => selectEntry(entry, event)}
         onDoubleClick={() => {
           if (entry.type === 'directory') navigateTo(entry.path)
         }}
@@ -81,7 +123,6 @@ export function FileBrowser() {
     )
   }
 
-  const entries = listing?.entries ?? []
   const breadcrumbs = [{ name: 'My Files', path: '/' }]
   let breadcrumbPath = ''
   for (const name of path.split('/').filter(Boolean)) {
@@ -127,7 +168,15 @@ export function FileBrowser() {
           ))}
         </div>
 
-        <section className="file-browser__list" aria-label="Files">
+        {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- Blank-space clicks clear selection; row buttons remain keyboard accessible. */}
+        <section
+          aria-label="Files"
+          className="file-browser__list"
+          onClick={(event) => {
+            if (event.target instanceof Element && event.target.closest('tr')) return
+            clearSelection()
+          }}
+        >
           {isLoading ? (
             <p aria-live="polite" className="file-browser__empty">
               Loading directory…
@@ -146,15 +195,19 @@ export function FileBrowser() {
               <table aria-label={`Files in ${path}`} className="file-browser__table">
                 <thead>
                   <tr>
-                    <th className="file-browser__heading" scope="col">
-                      Name
+                    <th aria-sort={sortColumn === 'name' ? ariaSortDirection : 'none'} className="file-browser__heading" scope="col">
+                      <button className="file-browser__sort-button" onClick={() => changeSort('name')} type="button">
+                        Name {sortColumn === 'name' ? sortIndicator : ''}
+                      </button>
                     </th>
-                    <th className="file-browser__heading file-browser__size-heading" scope="col">
-                      Size
+                    <th aria-sort={sortColumn === 'size' ? ariaSortDirection : 'none'} className="file-browser__heading file-browser__size-heading" scope="col">
+                      <button className="file-browser__sort-button" onClick={() => changeSort('size')} type="button">
+                        Size {sortColumn === 'size' ? sortIndicator : ''}
+                      </button>
                     </th>
                   </tr>
                 </thead>
-                <tbody>{entries.map(renderEntry)}</tbody>
+                <tbody>{sortedEntries.map(renderEntry)}</tbody>
               </table>
               {isEmpty && (
                 <div className="file-browser__empty">
@@ -178,16 +231,4 @@ export function FileBrowser() {
       </section>
     </main>
   )
-}
-
-function formatFileSize(size: number): string {
-  let value = size
-  let unitIndex = 0
-
-  while (value >= 1024 && unitIndex < sizeUnits.length - 1) {
-    value /= 1024
-    unitIndex += 1
-  }
-
-  return `${sizeFormatter.format(value)} ${sizeUnits[unitIndex]}`
 }
