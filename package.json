@@ -6,7 +6,7 @@
     "node": ">=26.9.0 <27"
   },
   "scripts": {
-    "dev:frontend": "pnpm run build:shared && pnpm --filter @raft/frontend dev",
+    "dev:frontend": "pnpm --filter @raft/frontend dev",
     "dev:backend": "pnpm run build:shared && pnpm --filter @raft/backend dev",
     "lint": "pnpm run build:shared && oxlint --type-aware",
     "fmt": "oxfmt .",

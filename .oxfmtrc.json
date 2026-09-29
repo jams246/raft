@@ -1,5 +1,4 @@
 {
-  "$schema": "https://oxc.rs/schema.json",
   "ignorePatterns": [
     ".runtime/**",
     ".git/**",
@@ -9,13 +8,11 @@
     "**/.next/**",
     "**/next-env.d.ts",
     ".plan/**",
-    ".docs/**",
+    ".agents/**",
     ".playwright-report-and-screenshots/**",
     "**/node_modules/**",
     "**/out/**",
-    "**/dist/**",
-    "**/fixtures/**",
-    "**/fixture-data/**"
+    "**/dist/**"
   ],
   "printWidth": 160,
   "semi": false,

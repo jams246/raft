@@ -1,12 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import type { DirectoryListing } from '@raft/shared'
-
-const initialListing: DirectoryListing = { path: '/', entries: [] }
 
 export function FileBrowser() {
-  const [virtualPath, setVirtualPath] = useState(initialListing.path)
+  const [virtualPath, setVirtualPath] = useState('/')
 
   return (
     <main className="file-browser">

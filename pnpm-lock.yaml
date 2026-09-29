@@ -212,9 +212,6 @@ importers:
 
   apps/frontend:
     dependencies:
-      '@raft/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       next:
         specifier: 16.3.6
         version: 16.3.6(@types/node@26.6.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
