@@ -8,6 +8,7 @@ import { RenameDialog } from './rename-dialog'
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog'
 import { FileBrowserToolbar } from './file-browser-toolbar'
 import { getSelectableRangePaths, sortFileEntries, type SortColumn, type SortDirection } from './file-browser-list'
+import { getBreadcrumbs } from './file-browser-breadcrumbs'
 
 export function FileBrowser() {
   const [listing, setListing] = useState<DirectoryListing>()
@@ -105,12 +106,7 @@ export function FileBrowser() {
     setSelectionAnchor(entry.path)
   }
 
-  const breadcrumbs = [{ name: 'My Files', path: '/' }]
-  let breadcrumbPath = ''
-  for (const name of path.split('/').filter(Boolean)) {
-    breadcrumbPath += `/${name}`
-    breadcrumbs.push({ name, path: breadcrumbPath })
-  }
+  const breadcrumbs = getBreadcrumbs(path)
   const isEmpty = path === '/' ? !entries.some((entry) => entry.type === 'directory') : entries.length === 0
 
   return (
@@ -145,9 +141,13 @@ export function FileBrowser() {
         <FileBrowserToolbar
           canCreateFolder={path !== '/'}
           canDelete={canDelete}
+          canDownload={!isLoading && !hasError && selectedEntry?.type === 'file'}
           canRename={canRename}
           onCreateFolder={() => setIsNewFolderDialogOpen(true)}
           onDelete={() => canDelete && setDeletePaths(selectedPaths)}
+          onDownload={() =>
+            selectedEntry?.type === 'file' && window.open(`/api/download?${new URLSearchParams({ path: selectedEntry.path })}`, '_blank', 'noopener')
+          }
           onRename={openRenameDialog}
         />
 

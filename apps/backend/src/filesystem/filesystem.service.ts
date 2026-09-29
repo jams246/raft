@@ -1,7 +1,8 @@
 import { HttpStatus, Injectable } from '@nestjs/common'
 import type { DirectoryListing, FileEntry } from '@raft/shared'
-import { lstat, mkdir, readdir, rename, rm } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
+import type { Readable } from 'node:stream'
+import { basename, dirname, join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { resolveVirtualPath, validateVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
@@ -14,6 +15,26 @@ export class FilesystemService {
 
   async validateExistingPath(virtualPath: string): Promise<ValidatedPath> {
     return this.validateSupportedPath(await resolveVirtualPath(virtualPath))
+  }
+
+  async openFileForDownload(virtualPath: string): Promise<{ fileName: string; stream: Readable }> {
+    const validatedPath = await resolveVirtualPath(virtualPath)
+    if (validatedPath.isDirectory) {
+      throw new ApiException('unsupported', 'The requested path is unsupported.', HttpStatus.BAD_REQUEST)
+    }
+
+    const fileHandle = await open(validatedPath.absolutePath, 'r').catch((error: unknown) => {
+      throw toFilesystemException(error)
+    })
+    try {
+      if (!(await fileHandle.stat()).isFile()) {
+        throw new ApiException('unsupported', 'The requested path is unsupported.', HttpStatus.BAD_REQUEST)
+      }
+      return { fileName: basename(validatedPath.absolutePath), stream: fileHandle.createReadStream({ autoClose: true }) }
+    } catch (error) {
+      await fileHandle.close().catch(() => {})
+      throw toFilesystemException(error)
+    }
   }
 
   async deletePaths(virtualPaths: string[]): Promise<void> {
