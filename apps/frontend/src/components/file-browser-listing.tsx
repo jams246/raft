@@ -42,11 +42,13 @@ export function FileBrowserListing({
   onClearSelection,
   onSort
 }: FileBrowserListingProps) {
+  const hasCurrentListing = listing?.path === path
   const ariaSortDirection = sortDirection === 'asc' ? 'ascending' : 'descending'
   const sortIndicator = sortDirection === 'asc' ? '↑' : '↓'
   return (
     /* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- Blank-space clicks clear selection; row buttons remain keyboard accessible. */
     <section
+      aria-busy={isLoading}
       aria-label="Files"
       className="file-browser__list"
       onClick={(event) => {
@@ -54,7 +56,7 @@ export function FileBrowserListing({
         onClearSelection()
       }}
     >
-      {isLoading ? (
+      {isLoading && !hasCurrentListing ? (
         <p aria-live="polite" className="file-browser__empty">
           Loading directory…
         </p>
@@ -67,7 +69,7 @@ export function FileBrowserListing({
           </button>
         </div>
       ) : null}
-      {listing && !isLoading && !hasError ? (
+      {hasCurrentListing && !hasError ? (
         <>
           <table aria-label={`Files in ${path}`} className="file-browser__table">
             <thead>
