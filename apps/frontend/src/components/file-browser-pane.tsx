@@ -13,7 +13,7 @@ import { NewFolderDialog } from './new-folder-dialog'
 import { RenameDialog } from './rename-dialog'
 import { UploadDialog } from './upload-dialog'
 import { useDirectoryListing } from './use-directory-listing'
-import type { FileBrowserPaneState } from './file-browser-pane-state'
+import { navigatePane, traversePaneHistory, type FileBrowserPaneState } from './file-browser-pane-state'
 
 type PanePosition = 'left' | 'right'
 
@@ -91,7 +91,17 @@ export function FileBrowserPane({
   function navigateTo(nextPath: string) {
     if (isFrozen) return
     window.scrollTo(0, 0)
-    onChangePane((currentPane) => ({ ...currentPane, path: nextPath, selectedPaths: [], selectionAnchor: undefined }))
+    onChangePane((currentPane) => navigatePane(currentPane, nextPath))
+  }
+
+  function handleHistoryButton(event: MouseEvent<HTMLElement>) {
+    if (event.button !== 3 && event.button !== 4) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (isFrozen || event.type !== 'mouseup') return
+    const direction = event.button === 3 ? -1 : 1
+    window.scrollTo(0, 0)
+    onChangePane((currentPane) => traversePaneHistory(currentPane, direction))
   }
 
   function changeSort(column: SortColumn) {
@@ -154,6 +164,9 @@ export function FileBrowserPane({
       className="file-browser__pane"
       onFocusCapture={onInteraction}
       onPointerDownCapture={onInteraction}
+      onMouseDownCapture={handleHistoryButton}
+      onMouseUpCapture={handleHistoryButton}
+      onAuxClickCapture={handleHistoryButton}
     >
       <FileBrowserLocation path={pane.path} isFrozen={isFrozen} onNavigate={navigateTo} />
       <div hidden={isFrozen || isNavigationOnly}>

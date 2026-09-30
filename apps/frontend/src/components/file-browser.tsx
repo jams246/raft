@@ -110,7 +110,7 @@ export function FileBrowser() {
   const recoverMissingDirectory = useCallback(
     (paneId: number, path: string) => {
       const returnToMyFiles = (pane: FileBrowserPaneState) =>
-        pane.path === path ? { ...pane, path: '/', selectedPaths: [], selectionAnchor: undefined } : pane
+        pane.path === path ? { ...pane, path: '/', history: ['/'], historyIndex: 0, selectedPaths: [], selectionAnchor: undefined } : pane
       setPanes((currentPanes) => currentPanes.map((pane) => (pane.id === paneId ? returnToMyFiles(pane) : pane)))
       setTransferWorkflow((workflow) =>
         workflow?.destinationPane?.id === paneId ? { ...workflow, destinationPane: returnToMyFiles(workflow.destinationPane) } : workflow
