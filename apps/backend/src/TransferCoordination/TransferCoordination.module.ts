@@ -1,0 +1,19 @@
+import { Module } from '@nestjs/common'
+import { TransferCoordination } from './Application/transfer-coordination.js'
+import { TRANSFER_RUNTIME } from './Application/ports.js'
+import { NodeTransferRuntime } from './Infrastructure/node-transfer-runtime.js'
+import { TransfersController } from './Presentation/transfers.controller.js'
+
+@Module({
+  controllers: [TransfersController],
+  providers: [
+    { provide: TRANSFER_RUNTIME, useFactory: () => new NodeTransferRuntime() },
+    {
+      provide: TransferCoordination,
+      useFactory: (runtime: NodeTransferRuntime) => new TransferCoordination(runtime),
+      inject: [TRANSFER_RUNTIME]
+    }
+  ],
+  exports: [TransferCoordination]
+})
+export class TransferCoordinationModule {}

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
 const { lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } = require('node:fs')
 const { basename, join } = require('node:path')
-const { DATA_ROOT, resolveVirtualPath, validateVirtualPath } = require('../dist/filesystem/paths.js')
+const { DATA_ROOT, resolveVirtualPath, validateVirtualPath } = require('../dist/FileManagement/Infrastructure/path-resolver.js')
 
 async function checkPathResolver() {
   mkdirSync(DATA_ROOT, { recursive: true })
