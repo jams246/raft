@@ -54,7 +54,7 @@ services:
       - '3001'
     profiles: [dev]
 
-  file-browser:
+  app:
     build:
       context: .
       target: production
