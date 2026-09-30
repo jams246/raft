@@ -54,7 +54,7 @@ export class FilesController {
     }
 
     if (response.destroyed) return
-    const archive = new ZipArchive({ forceZip64: true, zlib: { level: 6 } })
+    const archive = new ZipArchive({ forceZip64: true, store: true })
     const abortController = new AbortController()
     const stop = () => {
       abortController.abort()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type SubmitEvent } from 'react'
 
 interface DeleteConfirmationDialogProps {
   paths: string[]
@@ -20,7 +20,7 @@ export function DeleteConfirmationDialog({ paths, isLocked, onClose, onFinish }:
     dialogRef.current?.showModal()
   }, [])
 
-  async function deleteItems(event: FormEvent<HTMLFormElement>) {
+  async function deleteItems(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isLocked) return
     setIsSubmitting(true)

@@ -14,7 +14,7 @@ export class UploadSlotGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<UploadRequest>()
-    let wasAborted = request.aborted
+    let wasAborted = request.destroyed
     this.transferService.assertIdle()
 
     const directory = request.query.directory
@@ -40,7 +40,7 @@ export class UploadSlotGuard implements CanActivate {
     }
 
     await this.uploadFilesystemService.validateDestination(directory)
-    if (wasAborted || request.aborted || request.destroyed) {
+    if (wasAborted || request.destroyed) {
       throw new ApiException('operation_failed', 'The upload request was interrupted.', HttpStatus.INTERNAL_SERVER_ERROR)
     }
     const operation = this.transferService.reserveUpload(total, bytesTotal)
@@ -83,8 +83,7 @@ export class UploadSlotGuard implements CanActivate {
       request.once('aborted', onRequestAborted)
       signal.addEventListener('abort', onUploadAborted, { once: true })
       signal.throwIfAborted()
-      if (wasAborted || request.aborted || request.destroyed)
-        throw new ApiException('operation_failed', 'The upload request was interrupted.', HttpStatus.INTERNAL_SERVER_ERROR)
+      if (wasAborted || request.destroyed) throw new ApiException('operation_failed', 'The upload request was interrupted.', HttpStatus.INTERNAL_SERVER_ERROR)
       return true
     } catch (error) {
       cleanupListeners()

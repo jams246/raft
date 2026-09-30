@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type SubmitEvent } from 'react'
 
 interface NewFolderDialogProps {
   parentPath: string
@@ -18,7 +18,7 @@ export function NewFolderDialog({ parentPath, isLocked, onClose }: NewFolderDial
     dialogRef.current?.showModal()
   }, [])
 
-  async function createFolder(event: FormEvent<HTMLFormElement>) {
+  async function createFolder(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isLocked) return
     setIsSubmitting(true)

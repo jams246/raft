@@ -1,7 +1,7 @@
 'use client'
 
 import type { FileEntry } from '@raft/shared'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type SubmitEvent } from 'react'
 
 interface RenameDialogProps {
   item: FileEntry
@@ -24,7 +24,7 @@ export function RenameDialog({ item, isLocked, onClose, onSuccess }: RenameDialo
     inputRef.current?.setSelectionRange(0, selectionEnd)
   }, [selectionEnd])
 
-  async function renameItem(event: FormEvent<HTMLFormElement>) {
+  async function renameItem(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isLocked) return
     setIsSubmitting(true)
