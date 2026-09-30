@@ -4,7 +4,7 @@ import { mkdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { ApiException } from '../api/api-exception.js'
-import { toFilesystemException } from './errors.js'
+import { toFilesystemException, withFilesystemFailure } from './errors.js'
 import { FilesystemService } from './filesystem.service.js'
 import { parseUploadManifest } from './upload-validation.js'
 import { resolveVirtualPath } from './paths.js'
@@ -98,12 +98,7 @@ export class UploadFilesystemService {
         signal.throwIfAborted()
       } catch (error) {
         if (completedItems > 0) {
-          const cause = error instanceof ApiException ? error.message : 'The operation failed.'
-          throw new ApiException(
-            'operation_failed',
-            `The upload stopped after ${completedItems} of ${manifest.items.length} items. ${cause}`,
-            HttpStatus.INTERNAL_SERVER_ERROR
-          )
+          throw withFilesystemFailure(error, `The upload stopped after ${completedItems} of ${manifest.items.length} items.`)
         }
         throw error
       } finally {

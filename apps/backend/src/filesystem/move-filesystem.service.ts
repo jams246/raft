@@ -1,8 +1,7 @@
-import { HttpStatus, Injectable } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import type { ConflictPolicy, CopyConflict } from '@raft/shared'
 import { rename, rm } from 'node:fs/promises'
 import { basename } from 'node:path'
-import { ApiException } from '../api/api-exception.js'
 import { TransferService } from '../transfers/transfer.service.js'
 import { copyPreparedItem } from './copy-filesystem.service.js'
 import { FilesystemService } from './filesystem.service.js'
@@ -10,7 +9,7 @@ import { getCopyMoveConflicts, validateCopyMoveSelection, validateCopyMoveTarget
 import { resolveReplacementTargets } from './prepared-replacement.js'
 import type { PreparedDestination } from './prepared-replacement.js'
 import type { ValidatedPath } from './paths.js'
-import { toFilesystemException } from './errors.js'
+import { toFilesystemException, withFilesystemFailure } from './errors.js'
 
 @Injectable()
 export class MoveFilesystemService {
@@ -54,12 +53,7 @@ export class MoveFilesystemService {
         signal.throwIfAborted()
       } catch (error) {
         if (completedItems > 0) {
-          const cause = error instanceof ApiException ? error.message : 'The operation failed.'
-          throw new ApiException(
-            'operation_failed',
-            `The move stopped after ${completedItems} of ${sources.length} items. ${cause}`,
-            HttpStatus.INTERNAL_SERVER_ERROR
-          )
+          throw withFilesystemFailure(error, `The move stopped after ${completedItems} of ${sources.length} items.`)
         }
         throw error
       }
@@ -77,8 +71,8 @@ export class MoveFilesystemService {
     if (cleanupFailure) throw cleanupFailure
     try {
       await rm(source.absolutePath, { recursive: true })
-    } catch {
-      throw new ApiException('operation_failed', 'The destination was copied, but source content could not be fully removed.', HttpStatus.INTERNAL_SERVER_ERROR)
+    } catch (error) {
+      throw withFilesystemFailure(error, 'The destination was copied, but source content could not be fully removed.')
     }
   }
 }

@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common'
 import type { ZipArchive } from 'archiver'
 import { once } from 'node:events'
 import { constants } from 'node:fs'
-import { open } from 'node:fs/promises'
+import { access, open } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { toFilesystemException } from '../filesystem/errors.js'
@@ -46,6 +46,11 @@ export class DownloadsService {
         }
       })
     )
+    try {
+      await Promise.all(trees.flatMap((tree) => tree.filter((entry) => !entry.isDirectory).map((entry) => access(entry.absolutePath, constants.R_OK))))
+    } catch (error) {
+      throw toFilesystemException(error)
+    }
 
     const rootNames = topLevelPaths.map((path) => basename(path.absolutePath))
     const uniqueRootNames = new Set(rootNames)

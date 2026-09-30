@@ -1,10 +1,11 @@
-import { HttpStatus, Injectable } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import type { ConflictPolicy, CopyConflict } from '@raft/shared'
 import { cp, rm } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { TransferService } from '../transfers/transfer.service.js'
 import { FilesystemService } from './filesystem.service.js'
+import { toFilesystemException, withFilesystemFailure } from './errors.js'
 import { getCopyMoveConflicts, validateCopyMoveSelection, validateCopyMoveTargets } from './copy-move-validation.js'
 import { promotePreparedReplacement, resolveReplacementTargets, unusedInternalPath } from './prepared-replacement.js'
 import type { PreparedDestination } from './prepared-replacement.js'
@@ -42,12 +43,7 @@ export class CopyFilesystemService {
         signal.throwIfAborted()
       } catch (error) {
         if (completedItems > 0) {
-          const cause = error instanceof ApiException ? error.message : 'The operation failed.'
-          throw new ApiException(
-            'operation_failed',
-            `The copy stopped after ${completedItems} of ${sources.length} items. ${cause}`,
-            HttpStatus.INTERNAL_SERVER_ERROR
-          )
+          throw withFilesystemFailure(error, `The copy stopped after ${completedItems} of ${sources.length} items.`)
         }
         throw error
       }
@@ -69,6 +65,6 @@ export async function copyPreparedItem(
     return await promotePreparedReplacement(preparedPath, target, operationId, index)
   } catch (error) {
     await rm(preparedPath, { recursive: true, force: true }).catch(() => undefined)
-    throw error
+    throw toFilesystemException(error)
   }
 }

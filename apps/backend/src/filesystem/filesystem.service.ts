@@ -6,7 +6,7 @@ import { basename, dirname, join } from 'node:path'
 import { ApiException } from '../api/api-exception.js'
 import { INTERNAL_TEMPORARY_NAME, resolveVirtualPath, validateSupportedTree, validateVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
-import { toFilesystemException } from './errors.js'
+import { toFilesystemException, withFilesystemFailure } from './errors.js'
 import { TransferService } from '../transfers/transfer.service.js'
 
 @Injectable()
@@ -76,11 +76,10 @@ export class FilesystemService {
         try {
           await rm(validatedPath.absolutePath, { recursive: true })
           deletedCount += 1
-        } catch {
-          throw new ApiException(
-            'operation_failed',
-            `Deletion stopped after deleting ${deletedCount} of ${pathsToDelete.length} selected items. Selected content may also be partially deleted.`,
-            HttpStatus.INTERNAL_SERVER_ERROR
+        } catch (error) {
+          throw withFilesystemFailure(
+            error,
+            `Deletion stopped after deleting ${deletedCount} of ${pathsToDelete.length} selected items. Selected content may also be partially deleted.`
           )
         }
       }

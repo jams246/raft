@@ -69,7 +69,7 @@ export class TransferService {
   }
 
   assertIdle(): void {
-    if (this.activeOperation) throw new ApiException('operation_busy', 'Another transfer is already running.', HttpStatus.CONFLICT)
+    if (this.activeOperation) throw new ApiException('operation_busy', 'Another file operation is already running.', HttpStatus.CONFLICT)
   }
 
   getSignal(id: string): AbortSignal {

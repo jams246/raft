@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import type { ApiError, ApiErrorCode } from '@raft/shared'
 import type { Response } from 'express'
 import { ApiException } from './api-exception.js'
+import { toFilesystemException } from '../filesystem/errors.js'
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -14,7 +15,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return
     }
 
-    const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR
+    if (!(exception instanceof HttpException)) {
+      const failure = toFilesystemException(exception)
+      response.status(failure.getStatus()).json(failure.getResponse())
+      return
+    }
+
+    const status = exception.getStatus()
     const error = this.getErrorCode(status)
     const body: ApiError = {
       error,

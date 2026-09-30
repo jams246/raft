@@ -4,7 +4,7 @@ import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { ApiException } from '../api/api-exception.js'
-import { toFilesystemException } from './errors.js'
+import { toFilesystemException, withFilesystemFailure } from './errors.js'
 import { validateSupportedTree } from './paths.js'
 
 export interface PreparedDestination {
@@ -95,11 +95,10 @@ export async function promotePreparedReplacement(
       try {
         if (await pathExists(target.path)) throw new Error('The destination path is occupied.')
         await rename(backupPath, target.path)
-      } catch {
-        throw new ApiException(
-          'operation_failed',
-          'The replacement failed and the original item could not be restored. A backup was retained for manual recovery.',
-          HttpStatus.INTERNAL_SERVER_ERROR
+      } catch (restoreError) {
+        throw withFilesystemFailure(
+          restoreError,
+          'The replacement failed and the original item could not be restored. A backup was retained for manual recovery.'
         )
       }
     }
@@ -109,12 +108,8 @@ export async function promotePreparedReplacement(
   if (!backupPath) return
   try {
     await rm(backupPath, { recursive: true })
-  } catch {
-    return new ApiException(
-      'operation_failed',
-      'The replacement completed, but its backup could not be removed. The backup was retained for manual recovery.',
-      HttpStatus.INTERNAL_SERVER_ERROR
-    )
+  } catch (error) {
+    return withFilesystemFailure(error, 'The replacement completed, but its backup could not be removed. The backup was retained for manual recovery.')
   }
 }
 

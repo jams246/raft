@@ -11,8 +11,13 @@ export function toFilesystemException(error: unknown): ApiException {
   if (code === 'ENOENT' || code === 'ENOTDIR') {
     return new ApiException('not_found', 'The requested path was not found.', HttpStatus.NOT_FOUND)
   }
-  if (code === 'EACCES' || code === 'EPERM') {
+  if (code === 'EACCES' || code === 'EPERM' || code === 'EROFS') {
     return new ApiException('permission_denied', 'Permission denied.', HttpStatus.FORBIDDEN)
   }
   return new ApiException('operation_failed', 'The operation failed.', HttpStatus.INTERNAL_SERVER_ERROR)
+}
+
+export function withFilesystemFailure(error: unknown, context: string): ApiException {
+  const failure = toFilesystemException(error)
+  return new ApiException(failure.apiErrorCode, `${context} ${failure.message}`, failure.getStatus() as HttpStatus)
 }

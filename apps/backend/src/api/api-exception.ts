@@ -2,7 +2,11 @@ import { HttpException, HttpStatus } from '@nestjs/common'
 import type { ApiError, ApiErrorCode } from '@raft/shared'
 
 export class ApiException extends HttpException {
-  constructor(error: ApiErrorCode, message: string, status: HttpStatus) {
-    super({ error, message } satisfies ApiError, status)
+  constructor(
+    readonly apiErrorCode: ApiErrorCode,
+    message: string,
+    status: HttpStatus
+  ) {
+    super({ error: apiErrorCode, message } satisfies ApiError, status)
   }
 }
