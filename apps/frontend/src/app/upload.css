@@ -8,8 +8,8 @@
   display: grid;
   gap: 0.25rem;
   padding: 0.5rem;
-  border: 1px solid #c7d0d9;
-  background: #fff;
+  border: 1px solid var(--outline);
+  background: var(--surface);
 }
 
 .file-browser__upload-input,
@@ -22,13 +22,12 @@
   max-height: 85vh;
   overflow: auto;
   padding: 1.25rem;
-  border: 1px solid #c7d0d9;
-  border-radius: 0.5rem;
+  border: 1px solid var(--outline);
   color: inherit;
 }
 
 .upload-dialog::backdrop {
-  background: rgb(23 33 43 / 55%);
+  background: var(--backdrop);
 }
 
 .upload-dialog__title {

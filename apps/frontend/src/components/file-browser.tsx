@@ -134,7 +134,9 @@ export function FileBrowser() {
     <main className="file-browser">
       <header className="file-browser__header">
         <div>
-          <h1 className="file-browser__title">RAFT - Remote Access File Tool</h1>
+          <h1 className="file-browser__title">
+            RAFT<span className="file-browser__subtitle">Remote Access File Tool</span>
+          </h1>
           {destinationPane && transferWorkflow ? (
             <p className="copy-workflow__summary">
               {transferWorkflow.kind === 'move' ? 'Moving' : 'Copying'} {transferWorkflow.sourcePaths.length}{' '}

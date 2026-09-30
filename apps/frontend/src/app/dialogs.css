@@ -1,0 +1,55 @@
+.new-folder-dialog,
+.rename-dialog,
+.delete-confirmation-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+  padding: 1.25rem;
+  border: 1px solid var(--outline);
+  color: inherit;
+}
+
+.new-folder-dialog::backdrop,
+.rename-dialog::backdrop,
+.delete-confirmation-dialog::backdrop {
+  background: var(--backdrop);
+}
+
+.new-folder-dialog__title,
+.rename-dialog__title,
+.delete-confirmation-dialog__title {
+  margin: 0 0 1rem;
+}
+
+.new-folder-dialog__form,
+.rename-dialog__form,
+.delete-confirmation-dialog__form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.new-folder-dialog__form input,
+.rename-dialog__form input {
+  min-height: 2.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--outline);
+  font: inherit;
+}
+
+.new-folder-dialog__actions,
+.rename-dialog__actions,
+.delete-confirmation-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.delete-confirmation-dialog__confirm--destructive {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.delete-confirmation-dialog__confirm--destructive:focus-visible {
+  outline: 3px solid var(--danger);
+  outline-offset: 2px;
+}

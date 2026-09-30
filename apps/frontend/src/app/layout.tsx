@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
+import './themes.css'
 import './globals.css'
+import './dialogs.css'
+import './workspace.css'
 import './upload.css'
 import './copy.css'
 

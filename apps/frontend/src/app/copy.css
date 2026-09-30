@@ -28,11 +28,10 @@
   max-height: 85vh;
   overflow: auto;
   padding: 1.25rem;
-  border: 1px solid #c7d0d9;
-  border-radius: 0.5rem;
+  border: 1px solid var(--outline);
   color: inherit;
 }
 
 .copy-workflow__dialog::backdrop {
-  background: rgb(23 33 43 / 55%);
+  background: var(--backdrop);
 }

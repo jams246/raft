@@ -1,12 +1,13 @@
 :root {
-  color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f4f6f8;
-  color: #17212b;
+  color-scheme: dark;
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--text);
 }
 
 * {
   box-sizing: border-box;
+  border-radius: 0;
 }
 
 body {
@@ -17,15 +18,14 @@ body {
 button {
   min-height: 2.5rem;
   padding: 0.5rem 0.85rem;
-  border: 1px solid #c7d0d9;
-  border-radius: 0.35rem;
-  background: #fff;
+  border: 1px solid var(--outline);
+  background: var(--surface);
   color: inherit;
   font: inherit;
 }
 
 button:disabled {
-  color: #7c8791;
+  color: var(--disabled);
   cursor: not-allowed;
 }
 
@@ -33,8 +33,8 @@ button:disabled {
   display: grid;
   grid-template-rows: auto 1fr auto;
   min-height: 100vh;
-  padding: 1.25rem clamp(1rem, 4vw, 3rem);
-  gap: 1rem;
+  padding: 0;
+  gap: 0;
 }
 
 .file-browser__header {
@@ -42,7 +42,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #d6dde4;
+  border-bottom: 1px solid var(--outline);
 }
 
 .file-browser__title {
@@ -57,7 +57,7 @@ button:disabled {
 
 .file-browser__panes--dual {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0;
 }
 
 .file-browser__pane {
@@ -65,9 +65,8 @@ button:disabled {
   flex-direction: column;
   min-width: 0;
   min-height: 22rem;
-  border: 1px solid #d6dde4;
-  border-radius: 0.5rem;
-  background: #fff;
+  border: 1px solid var(--outline);
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -78,7 +77,7 @@ button:disabled {
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.75rem;
-  border-bottom: 1px solid #e2e7ec;
+  border-bottom: 1px solid var(--divider);
 }
 
 .file-browser__breadcrumb {
@@ -98,7 +97,7 @@ button:disabled {
 }
 
 .file-browser__breadcrumb-link {
-  color: #165f9f;
+  color: var(--accent);
 }
 
 .file-browser__sort-button {
@@ -107,7 +106,7 @@ button:disabled {
 
 .file-browser__sort-button:focus-visible,
 .file-browser__entry-button:focus-visible {
-  outline: 2px solid #165f9f;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -132,7 +131,7 @@ button:disabled {
 
 .file-browser__heading {
   padding: 0.75rem 0;
-  border-bottom: 1px solid #d6dde4;
+  border-bottom: 1px solid var(--outline);
   text-align: left;
 }
 
@@ -144,11 +143,11 @@ button:disabled {
 
 .file-browser__entry td {
   padding: 0.75rem 0;
-  border-bottom: 1px solid #e2e7ec;
+  border-bottom: 1px solid var(--divider);
 }
 
 .file-browser__entry--selected {
-  background: #e8f1fb;
+  background: var(--selection);
 }
 
 .file-browser__entry-button {
@@ -156,7 +155,7 @@ button:disabled {
 }
 
 .file-browser__entry--unsupported {
-  color: #586674;
+  color: var(--muted);
 }
 
 .file-browser__status {
@@ -166,71 +165,13 @@ button:disabled {
 
 .file-browser__empty {
   margin: 0;
-  color: #586674;
+  color: var(--muted);
 }
 
 .file-browser__operation-area {
   min-height: 3.5rem;
-  border-top: 1px solid #d6dde4;
+  border-top: 1px solid var(--outline);
   padding: 0.75rem;
-}
-
-.new-folder-dialog,
-.rename-dialog,
-.delete-confirmation-dialog {
-  width: min(28rem, calc(100vw - 2rem));
-  padding: 1.25rem;
-  border: 1px solid #c7d0d9;
-  border-radius: 0.5rem;
-  color: inherit;
-}
-
-.new-folder-dialog::backdrop,
-.rename-dialog::backdrop,
-.delete-confirmation-dialog::backdrop {
-  background: rgb(23 33 43 / 55%);
-}
-
-.new-folder-dialog__title,
-.rename-dialog__title,
-.delete-confirmation-dialog__title {
-  margin: 0 0 1rem;
-}
-
-.new-folder-dialog__form,
-.rename-dialog__form,
-.delete-confirmation-dialog__form {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.new-folder-dialog__form input,
-.rename-dialog__form input {
-  min-height: 2.5rem;
-  padding: 0.5rem;
-  border: 1px solid #c7d0d9;
-  border-radius: 0.35rem;
-  font: inherit;
-}
-
-.new-folder-dialog__actions,
-.rename-dialog__actions,
-.delete-confirmation-dialog__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.delete-confirmation-dialog__confirm--destructive {
-  border-color: #8f1d14;
-  background: #b42318;
-  color: #fff;
-}
-
-.delete-confirmation-dialog__confirm--destructive:focus-visible {
-  outline: 3px solid #f4a69f;
-  outline-offset: 2px;
 }
 
 @media (max-width: 600px) {
