@@ -1,9 +1,9 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { basename } from 'node:path'
-import { ApiException } from './api-exception.js'
 import { parseCopyMoveRequest } from './copy-move-request.js'
 import { MoveFilesystemService } from '../filesystem/move-filesystem.service.js'
 import { TransferService } from '../transfers/transfer.service.js'
+import { toFilesystemException } from '../filesystem/errors.js'
 
 @Controller()
 export class MoveController {
@@ -35,8 +35,9 @@ export class MoveController {
       )
       this.transferService.complete(operation.id)
     } catch (error) {
-      this.transferService.fail(operation.id, error instanceof ApiException ? error.message : 'The move could not be completed.')
-      throw error
+      const failure = toFilesystemException(error)
+      this.transferService.fail(operation.id, failure.message, failure.apiErrorCode)
+      throw failure
     }
   }
 }

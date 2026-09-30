@@ -12,12 +12,14 @@ import { resolveVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
 import { getConflicts, promotePreparedReplacement, resolveReplacementTargets, unusedInternalPath, validateIncomingNames } from './prepared-replacement.js'
 import { TransferService } from '../transfers/transfer.service.js'
+import { StorageCapacityService } from './storage-capacity.service.js'
 
 @Injectable()
 export class UploadFilesystemService {
   constructor(
     private readonly filesystemService: FilesystemService,
-    private readonly transferService: TransferService
+    private readonly transferService: TransferService,
+    private readonly storageCapacityService: StorageCapacityService
   ) {}
 
   async validateDestination(virtualPath: string): Promise<ValidatedPath> {
@@ -41,9 +43,10 @@ export class UploadFilesystemService {
     }
   }
 
-  prepareUpload(virtualPath: string, operationId: string): Promise<string> {
+  prepareUpload(virtualPath: string, operationId: string, bytesTotal: number): Promise<string> {
     return this.filesystemService.runTransferMutation(operationId, async () => {
       const destination = await this.validateDestination(virtualPath)
+      await this.storageCapacityService.assertAvailable(destination.absolutePath, BigInt(bytesTotal))
       return this.createStagingDirectory(destination.absolutePath, operationId)
     })
   }
@@ -54,8 +57,18 @@ export class UploadFilesystemService {
     const probePath = await this.createStagingDirectory(destination.absolutePath, randomUUID())
     try {
       await validateIncomingNames(probePath, manifest.items)
-    } finally {
+    } catch (error) {
+      try {
+        await this.cleanupStagingDirectory(probePath)
+      } catch (cleanupError) {
+        throw withFilesystemFailure(error, 'Temporary upload data could not be removed.', cleanupError)
+      }
+      throw error
+    }
+    try {
       await this.cleanupStagingDirectory(probePath)
+    } catch (error) {
+      throw withFilesystemFailure(error, 'Temporary upload data could not be removed.')
     }
     return getConflicts(destination.absolutePath, manifest.items)
   }
@@ -68,17 +81,18 @@ export class UploadFilesystemService {
     storedParts: StoredUploadPart[],
     policy: UploadConflictPolicy,
     total: number,
-    bytesTotal: number | null,
+    bytesTotal: number,
     signal: AbortSignal
   ): Promise<void> {
-    const storedBytes = storedParts.reduce((sum, part) => sum + part.size, 0)
-    const operation = this.transferService.getSnapshot()
-    const bytesProcessed = Number.isFinite(storedBytes) && storedBytes >= 0 ? storedBytes : (operation?.bytesProcessed ?? 0)
-    const activeBytesTotal = operation?.id === operationId ? operation.bytesTotal : null
+    const storedBytes = storedParts.reduce((sum, part) => {
+      if (!Number.isSafeInteger(part.size) || part.size < 0) throw invalidUpload()
+      return sum + BigInt(part.size)
+    }, 0n)
+    if (storedBytes !== BigInt(bytesTotal)) throw invalidUpload('The uploaded data does not match its declared byte total.')
     this.transferService.progress(operationId, {
       phase: 'finalizing',
-      bytesProcessed,
-      bytesTotal: bytesTotal !== null && activeBytesTotal !== null && storedBytes === bytesTotal ? bytesTotal : null
+      bytesProcessed: Number(storedBytes),
+      bytesTotal
     })
     const manifest = parseUploadManifest(rawManifest, total, storedParts.length)
     if (policy !== 'rename' && policy !== 'overwrite') throw invalidUpload()
@@ -91,6 +105,8 @@ export class UploadFilesystemService {
       const targets = await resolveReplacementTargets(destination.absolutePath, manifest.items, policy)
       const preparedPaths: string[] = []
       let completedItems = 0
+      let failed = false
+      let failure: unknown
       try {
         for (const [index, incomingPath] of incomingPaths.entries()) {
           signal.throwIfAborted()
@@ -108,13 +124,18 @@ export class UploadFilesystemService {
         }
         signal.throwIfAborted()
       } catch (error) {
-        if (completedItems > 0) {
-          throw withFilesystemFailure(error, `The upload stopped after ${completedItems} of ${manifest.items.length} items.`)
-        }
-        throw error
-      } finally {
-        await Promise.all(preparedPaths.map((path) => rm(path, { recursive: true, force: true }).catch(() => undefined)))
+        failed = true
+        failure = completedItems > 0 ? withFilesystemFailure(error, `The upload stopped after ${completedItems} of ${manifest.items.length} items.`) : error
       }
+      const cleanupResults = await Promise.allSettled(preparedPaths.map((path) => rm(path, { recursive: true, force: true })))
+      const cleanupError = cleanupResults.find((result) => result.status === 'rejected' && !isMissing(result.reason))
+      if (cleanupError?.status === 'rejected') {
+        failure = failed
+          ? withFilesystemFailure(failure, 'Temporary upload data could not be removed.', cleanupError.reason)
+          : withFilesystemFailure(cleanupError.reason, 'Temporary upload data could not be removed.')
+        failed = true
+      }
+      if (failed) throw failure
     })
   }
 
@@ -161,8 +182,8 @@ export class UploadFilesystemService {
   }
 }
 
-function invalidUpload(): ApiException {
-  return new ApiException('invalid_request', 'The upload request is invalid.', HttpStatus.BAD_REQUEST)
+function invalidUpload(message = 'The upload request is invalid.'): ApiException {
+  return new ApiException('invalid_request', message, HttpStatus.BAD_REQUEST)
 }
 
 function isMissing(error: unknown): boolean {

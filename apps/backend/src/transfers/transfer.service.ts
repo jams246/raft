@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common'
-import type { TransferEvent, TransferState } from '@raft/shared'
+import type { ApiErrorCode, TransferEvent, TransferState } from '@raft/shared'
 import { randomUUID } from 'node:crypto'
 import { Subject, type Subscription } from 'rxjs'
 import { ApiException } from '../api/api-exception.js'
@@ -19,7 +19,7 @@ export class TransferService {
     return this.events.subscribe(listener)
   }
 
-  reserveUpload(total: number, bytesTotal: number | null): TransferState {
+  reserveUpload(total: number, bytesTotal: number): TransferState {
     return this.reserve('upload', total, undefined, bytesTotal)
   }
 
@@ -94,12 +94,12 @@ export class TransferService {
     this.events.next({ type: 'operation_completed', operationId: id })
   }
 
-  fail(id: string, message: string): void {
+  fail(id: string, message: string, error: ApiErrorCode = 'operation_failed'): void {
     if (this.activeOperation?.id !== id) return
     this.clearProgressTimer()
     this.activeOperation = undefined
     this.cancellation = undefined
-    this.events.next({ type: 'operation_failed', operationId: id, message })
+    this.events.next({ type: 'operation_failed', operationId: id, error, message })
   }
 
   assertIdle(): void {

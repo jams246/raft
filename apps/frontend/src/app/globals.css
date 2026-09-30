@@ -45,6 +45,21 @@ button:disabled {
   border-bottom: 1px solid var(--outline);
 }
 
+.file-browser__warning {
+  margin: 0;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--outline);
+  background: var(--surface);
+}
+
+.file-browser:has(> .file-browser__warning) {
+  grid-template-rows: auto auto 1fr;
+}
+
+.file-browser__warning button {
+  margin-inline-start: 0.75rem;
+}
+
 .file-browser__title {
   margin: 0;
   font-size: 1.35rem;

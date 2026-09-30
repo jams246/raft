@@ -21,7 +21,7 @@ export async function getConflicts(destinationPath: string, items: ReplacementCa
 export async function validateIncomingNames(stagingPath: string, items: UploadCandidate[]): Promise<void> {
   const claimsPath = join(stagingPath, 'claims')
   await mkdir(claimsPath)
-  try {
+  await withTemporaryDirectory(claimsPath, async () => {
     for (const item of items) {
       const itemPath = join(claimsPath, item.name)
       await createClaimDirectory(claimsPath, item.name)
@@ -42,9 +42,7 @@ export async function validateIncomingNames(stagingPath: string, items: UploadCa
         }
       }
     }
-  } finally {
-    await rm(claimsPath, { recursive: true, force: true })
-  }
+  })
 }
 
 export async function resolveReplacementTargets(
@@ -54,8 +52,8 @@ export async function resolveReplacementTargets(
 ): Promise<PreparedDestination[]> {
   const claimsPath = await unusedInternalPath(destinationPath, 'tmp', randomUUID(), 0)
   await mkdir(claimsPath)
-  const targets: PreparedDestination[] = []
-  try {
+  return withTemporaryDirectory(claimsPath, async () => {
+    const targets: PreparedDestination[] = []
     for (const item of items) await mkdir(join(claimsPath, item.name))
     for (const item of items) {
       let name = item.name
@@ -71,9 +69,7 @@ export async function resolveReplacementTargets(
       targets.push({ name, path: targetPath, existing })
     }
     return targets
-  } finally {
-    await rm(claimsPath, { recursive: true, force: true })
-  }
+  })
 }
 
 export async function promotePreparedReplacement(
@@ -97,8 +93,9 @@ export async function promotePreparedReplacement(
         await rename(backupPath, target.path)
       } catch (restoreError) {
         throw withFilesystemFailure(
-          restoreError,
-          'The replacement failed and the original item could not be restored. A backup was retained for manual recovery.'
+          error,
+          'The replacement failed and the original item could not be restored. A backup was retained for manual recovery.',
+          restoreError
         )
       }
     }
@@ -109,7 +106,7 @@ export async function promotePreparedReplacement(
   try {
     await rm(backupPath, { recursive: true })
   } catch (error) {
-    return withFilesystemFailure(error, 'The replacement completed, but its backup could not be removed. The backup was retained for manual recovery.')
+    return withFilesystemFailure(error, 'The replacement completed, but its backup could not be removed. Check for recovery data in the destination.')
   }
 }
 
@@ -182,6 +179,29 @@ function isMissing(error: unknown): boolean {
 
 function isExists(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
+}
+
+async function withTemporaryDirectory<T>(directory: string, action: () => Promise<T>): Promise<T> {
+  let result!: T
+  let failure: unknown
+  let didFail = false
+  try {
+    result = await action()
+  } catch (error) {
+    failure = error
+    didFail = true
+  }
+
+  try {
+    await rm(directory, { recursive: true, force: true })
+  } catch (cleanupError) {
+    if (!isMissing(cleanupError)) {
+      if (didFail) throw withFilesystemFailure(failure, 'Temporary validation data could not be removed.', cleanupError)
+      throw withFilesystemFailure(cleanupError, 'Temporary validation data could not be removed.')
+    }
+  }
+  if (didFail) throw toFilesystemException(failure)
+  return result
 }
 
 export interface ReplacementCandidate {

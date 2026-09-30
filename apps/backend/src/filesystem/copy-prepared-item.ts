@@ -4,7 +4,8 @@ import { basename, dirname, join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { HttpStatus } from '@nestjs/common'
 import { ApiException } from '../api/api-exception.js'
-import { toFilesystemException } from './errors.js'
+import { toFilesystemException, withFilesystemFailure } from './errors.js'
+import { StreamingCapacityGuard } from './streaming-capacity-guard.js'
 import { listSupportedTree } from './paths.js'
 import type { SupportedTreeEntry, ValidatedPath } from './paths.js'
 import { promotePreparedReplacement, unusedInternalPath } from './prepared-replacement.js'
@@ -45,13 +46,17 @@ export async function copyPreparedItem(
   operationId: string,
   index: number,
   signal: AbortSignal,
+  capacity: StreamingCapacityGuard,
   reportBytes: (bytesWritten: number) => void,
   invalidateTotal: () => void,
   enterFinalizing: () => void
 ): Promise<{ bytesWritten: number; cleanupFailure: Awaited<ReturnType<typeof promotePreparedReplacement>>; matchesPreparedSize: boolean }> {
+  const sourceBytes = source.entries.reduce((total, entry) => total + (entry.isDirectory ? 0n : BigInt(entry.stats.size)), 0n)
+  await capacity.checkBeforeOutput(sourceBytes)
   const preparedPath = await unusedInternalPath(dirname(target.path), 'tmp', operationId, index + 1)
   const directories = source.entries.filter((entry) => entry.isDirectory)
   let bytesWritten = 0
+  let itemBytesAccepted = 0n
   let ownsPreparedPath = false
 
   try {
@@ -76,15 +81,28 @@ export async function copyPreparedItem(
         if (currentStats.size !== entry.stats.size) invalidateTotal()
 
         const input = inputHandle.createReadStream({ autoClose: true })
+        const remainingBytes = () => {
+          const remaining = sourceBytes - itemBytesAccepted
+          return remaining > 0n ? remaining : 0n
+        }
+        await capacity.checkBeforeOutput(remainingBytes())
         const outputHandle = await open(destinationPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, entry.stats.mode & 0o7777)
         if (!source.source.isDirectory) ownsPreparedPath = true
         const output = outputHandle.createWriteStream({ autoClose: true })
+        const capacityTransform = capacity.createTransform(
+          remainingBytes,
+          () => output.bytesWritten,
+          (byteCount) => {
+            itemBytesAccepted += BigInt(byteCount)
+          }
+        )
         const sample = () => reportBytes(bytesWritten + output.bytesWritten)
         const samplingTimer = setInterval(sample, 100)
         try {
-          await pipeline(input, output, { signal })
+          await pipeline(input, capacityTransform.transform, output, { signal })
         } finally {
           clearInterval(samplingTimer)
+          capacityTransform.dispose()
           bytesWritten += output.bytesWritten
           reportBytes(bytesWritten)
         }
@@ -113,14 +131,19 @@ export async function copyPreparedItem(
     const cleanupFailure = await promotePreparedReplacement(preparedPath, target, operationId, index)
     return { bytesWritten, cleanupFailure, matchesPreparedSize }
   } catch (error) {
+    let failure = error
     if (ownsPreparedPath) {
       for (const entry of directories) {
         const destinationPath = join(preparedPath, entry.relativePath)
         await chmod(destinationPath, (entry.stats.mode & 0o7777) | 0o700).catch(() => undefined)
       }
-      await rm(preparedPath, { recursive: true, force: true }).catch(() => undefined)
+      try {
+        await rm(preparedPath, { recursive: true, force: true })
+      } catch (cleanupError) {
+        if (!isMissing(cleanupError)) failure = withFilesystemFailure(error, 'Temporary copy data could not be removed.', cleanupError)
+      }
     }
-    throw toFilesystemException(error)
+    throw toFilesystemException(failure)
   }
 }
 
@@ -162,6 +185,10 @@ function getContentSize(entries: SupportedTreeEntry[]): { bytes: number; bytesTo
     if (!Number.isSafeInteger(bytes)) isTotalKnown = false
   }
   return { bytes, bytesTotal: isTotalKnown ? bytes : null }
+}
+
+function isMissing(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')
 }
 
 export async function measureMovedSource(

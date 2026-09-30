@@ -8,6 +8,7 @@ export type ApiErrorCode =
   | 'operation_busy'
   | 'operation_failed'
   | 'invalid_request'
+  | 'insufficient_storage'
 
 export interface ApiError {
   error: ApiErrorCode
@@ -16,4 +17,5 @@ export interface ApiError {
 
 export interface ApiHealth {
   status: 'ok'
+  warnings?: string[]
 }

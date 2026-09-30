@@ -13,12 +13,14 @@ export interface TransferState {
   status: 'running'
 }
 
+import type { ApiErrorCode } from './api-types.js'
+
 export type TransferEvent =
   | { type: 'operation_state'; operation: TransferState | null }
   | { type: 'operation_started'; operation: TransferState }
   | { type: 'operation_progress'; operation: TransferState }
   | { type: 'operation_completed'; operationId: string }
-  | { type: 'operation_failed'; operationId: string; message: string }
+  | { type: 'operation_failed'; operationId: string; error: ApiErrorCode; message: string }
   | { type: 'directory_changed'; path: string }
 
 export type ConflictPolicy = 'rename' | 'overwrite'

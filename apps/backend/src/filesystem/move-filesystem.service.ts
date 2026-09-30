@@ -11,12 +11,15 @@ import type { PreparedDestination } from './prepared-replacement.js'
 import { toFilesystemException, withFilesystemFailure } from './errors.js'
 import { copyPreparedItem, measureMovedSource, prepareCopySources } from './copy-prepared-item.js'
 import type { PreparedCopySource } from './copy-prepared-item.js'
+import { StorageCapacityService } from './storage-capacity.service.js'
+import { StreamingCapacityGuard } from './streaming-capacity-guard.js'
 
 @Injectable()
 export class MoveFilesystemService {
   constructor(
     private readonly filesystemService: FilesystemService,
-    private readonly transferService: TransferService
+    private readonly transferService: TransferService,
+    private readonly storageCapacityService: StorageCapacityService
   ) {}
 
   async preflight(sourcePaths: string[], destinationPath: string): Promise<CopyConflict[]> {
@@ -33,6 +36,7 @@ export class MoveFilesystemService {
       validateCopyMoveTargets(sources, destination, targets, 'move')
       const prepared = await prepareCopySources(sources, (currentName) => this.transferService.progress(operationId, { currentName }), signal)
       this.transferService.progress(operationId, { phase: 'transferring', bytesTotal: prepared.bytesTotal })
+      const capacity = new StreamingCapacityGuard((requiredBytes) => this.storageCapacityService.assertAvailable(destination.absolutePath, requiredBytes))
 
       let completedItems = 0
       let bytesProcessed = 0
@@ -49,6 +53,7 @@ export class MoveFilesystemService {
               operationId,
               index,
               signal,
+              capacity,
               (itemBytes) => this.transferService.progress(operationId, { bytesProcessed: bytesProcessed + itemBytes }),
               () => {
                 bytesTotal = null
@@ -99,10 +104,11 @@ export class MoveFilesystemService {
     operationId: string,
     index: number,
     signal: AbortSignal,
+    capacity: StreamingCapacityGuard,
     reportBytes: (bytesWritten: number) => void,
     invalidateTotal: () => void
   ): Promise<number> {
-    const result = await copyPreparedItem(source, target, operationId, index, signal, reportBytes, invalidateTotal, () =>
+    const result = await copyPreparedItem(source, target, operationId, index, signal, capacity, reportBytes, invalidateTotal, () =>
       this.transferService.progress(operationId, { phase: 'finalizing' })
     )
     if (result.cleanupFailure) throw result.cleanupFailure

@@ -21,6 +21,7 @@ export function UploadDialog({ directory, selection, isOperationLocked, onClose,
   const [conflicts, setConflicts] = useState<UploadConflict[]>()
   const [policy, setPolicy] = useState<UploadConflictPolicy>('rename')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [canRetryCheck, setCanRetryCheck] = useState(true)
   const [checkRevision, setCheckRevision] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const isChecking = conflicts === undefined && !errorMessage
@@ -32,14 +33,19 @@ export function UploadDialog({ directory, selection, isOperationLocked, onClose,
   const sendUpload = useCallback(
     async (uploadPolicy: UploadConflictPolicy) => {
       if (operationLocked.current || requestStarted.current) return
+      const bytesTotal = selection.files.reduce((total, file) => total + file.size, 0)
+      if (!Number.isSafeInteger(bytesTotal) || bytesTotal < 0) {
+        setCanRetryCheck(false)
+        setErrorMessage('The selected files exceed the supported upload size.')
+        return
+      }
       requestStarted.current = true
       const controller = new AbortController()
       setIsSubmitting(true)
       setErrorMessage('')
       try {
         const query = new URLSearchParams({ directory, total: String(selection.manifest.items.length), policy: uploadPolicy })
-        const bytesTotal = selection.files.reduce((total, file) => total + file.size, 0)
-        if (Number.isSafeInteger(bytesTotal)) query.set('bytesTotal', String(bytesTotal))
+        query.set('bytesTotal', String(bytesTotal))
         const request = fetch(`/api/upload?${query}`, { method: 'POST', body: createUploadFormData(selection), signal: controller.signal })
         onRequestStarted(controller)
         dialogRef.current?.close()
@@ -131,11 +137,11 @@ export function UploadDialog({ directory, selection, isOperationLocked, onClose,
           Cancel
         </button>
         {conflicts ? (
-          <button disabled={isSubmitting || isOperationLocked} onClick={() => void sendUpload(policy)} type="button">
+          <button disabled={isSubmitting || isOperationLocked || !canRetryCheck} onClick={() => void sendUpload(policy)} type="button">
             {isSubmitting ? 'Uploading…' : 'Upload'}
           </button>
         ) : null}
-        {errorMessage ? (
+        {errorMessage && canRetryCheck ? (
           <button
             disabled={isSubmitting || isChecking || isOperationLocked}
             onClick={() => {

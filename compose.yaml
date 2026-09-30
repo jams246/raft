@@ -47,6 +47,7 @@ services:
     environment:
       <<: *workspace-environment
       PORT: '3001'
+      MIN_FREE_SPACE: ${MIN_FREE_SPACE-1GiB}
     volumes:
       - ./.runtime/fixtures:/data/Fixtures
     expose:
@@ -59,3 +60,5 @@ services:
       target: production
     ports:
       - '3000:3000'
+    environment:
+      MIN_FREE_SPACE: ${MIN_FREE_SPACE-1GiB}

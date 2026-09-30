@@ -16,6 +16,7 @@ import { MoveController } from './api/move.controller.js'
 import { CopyFilesystemService } from './filesystem/copy-filesystem.service.js'
 import { MoveFilesystemService } from './filesystem/move-filesystem.service.js'
 import { DirectoryWatchService } from './events/directory-watch.service.js'
+import { StorageCapacityService } from './filesystem/storage-capacity.service.js'
 
 @Module({
   controllers: [FilesController, DirectoriesController, HealthController, UploadsController, EventsController, CopyController, MoveController],
@@ -27,6 +28,7 @@ import { DirectoryWatchService } from './events/directory-watch.service.js'
     UploadFilesystemService,
     CopyFilesystemService,
     MoveFilesystemService,
+    StorageCapacityService,
     DirectoryWatchService,
     UploadSlotGuard,
     UploadInterceptor

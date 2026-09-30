@@ -30,6 +30,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (status === HttpStatus.NOT_FOUND) return 'not_found'
     if (status === HttpStatus.FORBIDDEN) return 'permission_denied'
     if (status === HttpStatus.BAD_REQUEST) return 'invalid_request'
+    if (status === HttpStatus.INSUFFICIENT_STORAGE) return 'insufficient_storage'
     return 'operation_failed'
   }
 
@@ -37,6 +38,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (error === 'not_found') return 'The requested resource was not found.'
     if (error === 'permission_denied') return 'Permission denied.'
     if (error === 'invalid_request') return 'The request is invalid.'
+    if (error === 'insufficient_storage') return 'The destination does not have enough free space for this operation.'
     return 'The operation failed.'
   }
 }

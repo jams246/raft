@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
+import { ConfigurationWarning } from './configuration-warning'
 import { CopyWorkflow } from './copy-workflow'
 import { FileBrowserPane } from './file-browser-pane'
 import { createFileBrowserPaneState, type FileBrowserPaneState } from './file-browser-pane-state'
@@ -159,6 +160,7 @@ export function FileBrowser() {
           Dual Pane
         </button>
       </header>
+      <ConfigurationWarning />
       <div className={isDualPane ? 'file-browser__panes file-browser__panes--dual' : 'file-browser__panes'}>
         {visiblePanes.map((pane, index) => (
           <FileBrowserPane

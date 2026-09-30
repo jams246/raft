@@ -7,6 +7,7 @@ import { readUploadManifest } from './upload-request.js'
 import { UploadFilesystemService } from '../filesystem/upload-filesystem.service.js'
 import { TransferService } from '../transfers/transfer.service.js'
 import { parseUploadManifest } from '../filesystem/upload-validation.js'
+import { withFilesystemFailure } from '../filesystem/errors.js'
 
 @Controller()
 export class UploadsController {
@@ -61,7 +62,11 @@ export class UploadsController {
       operation.bytesTotal,
       operation.signal
     )
-    await this.uploadFilesystemService.cleanupStagingDirectory(operation.stagingPath)
+    try {
+      await this.uploadFilesystemService.cleanupStagingDirectory(operation.stagingPath)
+    } catch (error) {
+      throw withFilesystemFailure(error, 'The upload completed and its items were kept, but temporary upload data could not be removed.')
+    }
     operation.signal.throwIfAborted()
     this.transferService.complete(operation.id)
     operation.cleanupListeners()
