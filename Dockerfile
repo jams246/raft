@@ -40,7 +40,7 @@ COPY --from=production-dependencies --chown=node:node /workspace/node_modules ./
 COPY --from=production-dependencies --chown=node:node /workspace/apps/backend/node_modules ./apps/backend/node_modules
 COPY --from=production-dependencies --chown=node:node /workspace/apps/backend/package.json ./apps/backend/package.json
 COPY --from=build --chown=node:node /workspace/apps/backend/dist ./apps/backend/dist
-COPY --from=build --chown=node:node /workspace/apps/frontend/out/site ./apps/frontend/out
+COPY --from=build --chown=node:node /workspace/apps/frontend/out/site ./apps/frontend/out/site
 COPY --from=build --chown=node:node /workspace/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build --chown=node:node /workspace/packages/shared/dist ./packages/shared/dist
 USER node

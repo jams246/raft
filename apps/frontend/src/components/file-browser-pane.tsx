@@ -58,6 +58,7 @@ export function FileBrowserPane({
   const [uploadSelection, setUploadSelection] = useState<UploadSelection>()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
+  const paneRef = useRef<HTMLElement>(null)
   const { listing, isLoading, hasError, missingPath, refresh } = useDirectoryListing(pane.path)
   const entries = listing?.entries ?? EMPTY_ENTRIES
   const sortedEntries = useMemo(() => sortFileEntries(entries, pane.sortColumn, pane.sortDirection), [entries, pane.sortColumn, pane.sortDirection])
@@ -75,6 +76,9 @@ export function FileBrowserPane({
 
   useEffect(() => folderInputRef.current?.setAttribute('webkitdirectory', ''), [])
   useLayoutEffect(() => {
+    paneRef.current?.scrollTo(0, 0)
+  }, [pane.path])
+  useLayoutEffect(() => {
     onRegisterListingRefresh(pane.id, pane.path, refresh)
     return () => onRegisterListingRefresh(pane.id, pane.path)
   }, [onRegisterListingRefresh, pane.id, pane.path, refresh])
@@ -90,7 +94,6 @@ export function FileBrowserPane({
 
   function navigateTo(nextPath: string) {
     if (isFrozen) return
-    window.scrollTo(0, 0)
     onChangePane((currentPane) => navigatePane(currentPane, nextPath))
   }
 
@@ -100,7 +103,6 @@ export function FileBrowserPane({
     event.stopPropagation()
     if (isFrozen || event.type !== 'mouseup') return
     const direction = event.button === 3 ? -1 : 1
-    window.scrollTo(0, 0)
     onChangePane((currentPane) => traversePaneHistory(currentPane, direction))
   }
 
@@ -162,6 +164,7 @@ export function FileBrowserPane({
     <section
       aria-label={`${position === 'left' ? 'Left' : 'Right'} file pane`}
       className="file-browser__pane"
+      ref={paneRef}
       onFocusCapture={onInteraction}
       onPointerDownCapture={onInteraction}
       onMouseDownCapture={handleHistoryButton}
