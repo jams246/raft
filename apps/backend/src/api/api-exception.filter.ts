@@ -10,12 +10,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const context = host.switchToHttp()
     const response = context.getResponse<Response>()
 
-    if (exception instanceof ApiException) {
-      response.status(exception.getStatus()).json(exception.getResponse())
-      return
-    }
-
-    if (!(exception instanceof HttpException)) {
+    if (exception instanceof ApiException || !(exception instanceof HttpException)) {
       const failure = toFilesystemException(exception)
       response.status(failure.getStatus()).json(failure.getResponse())
       return
