@@ -111,11 +111,12 @@ export class TransferService {
     return this.cancellation!.signal
   }
 
-  cancelUpload(id: string): void {
-    if (this.activeOperation?.id !== id || this.activeOperation.kind !== 'upload') {
-      throw new ApiException('not_found', 'This upload is no longer active.', HttpStatus.NOT_FOUND)
+  cancel(id: string, kind: 'upload' | 'copy'): void {
+    if (this.activeOperation?.id !== id || this.activeOperation.kind !== kind) {
+      throw new ApiException('not_found', `This ${kind} is no longer active.`, HttpStatus.NOT_FOUND)
     }
-    this.cancellation!.abort(new ApiException('operation_failed', 'Upload cancelled. Any completed items were kept.', HttpStatus.CONFLICT))
+    const label = kind === 'upload' ? 'Upload' : 'Copy'
+    this.cancellation!.abort(new ApiException('operation_failed', `${label} cancelled. Any completed items were kept.`, HttpStatus.CONFLICT))
   }
 
   assertActive(id: string): void {

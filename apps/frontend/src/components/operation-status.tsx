@@ -1,5 +1,5 @@
 import type { TransferState } from '@raft/shared'
-import { CancelUploadButton } from './cancel-upload-button'
+import { CancelTransferButton } from './cancel-transfer-button'
 import { formatFileSize } from './file-browser-list'
 
 interface OperationStatusProps {
@@ -39,7 +39,9 @@ export function OperationStatus({ operation, isConnected, notice, uploadPending,
             <p className="operation-status__items">
               {operation.current} / {operation.total} items completed
             </p>
-            {operation.kind === 'upload' ? <CancelUploadButton isConnected={isConnected} key={operation.id} operationId={operation.id} /> : null}
+            {operation.kind === 'upload' || operation.kind === 'copy' ? (
+              <CancelTransferButton isConnected={isConnected} key={operation.id} kind={operation.kind} operationId={operation.id} />
+            ) : null}
           </>
         ) : null}
         {!operation && uploadPending ? <p>Starting upload…</p> : null}

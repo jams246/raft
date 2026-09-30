@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common'
+import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
 import { basename } from 'node:path'
 import { parseCopyMoveRequest } from './copy-move-request.js'
 import { CopyFilesystemService } from '../filesystem/copy-filesystem.service.js'
@@ -11,6 +11,12 @@ export class CopyController {
     private readonly copyFilesystemService: CopyFilesystemService,
     private readonly transferService: TransferService
   ) {}
+
+  @Post('copy/:id/cancel')
+  @HttpCode(HttpStatus.ACCEPTED)
+  cancelCopy(@Param('id') id: string): void {
+    this.transferService.cancel(id, 'copy')
+  }
 
   @Post('copy/preflight')
   @HttpCode(HttpStatus.OK)

@@ -29,7 +29,6 @@ export function CopyWorkflow({
   const [policy, setPolicy] = useState<ConflictPolicy>('rename')
   const [isChecking, setIsChecking] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const dialogRef = useRef<HTMLDialogElement>(null)
   const preflightController = useRef<AbortController | undefined>(undefined)
   const requestStarted = useRef(false)
   const operationLocked = useRef(isOperationLocked)
@@ -91,7 +90,6 @@ export function CopyWorkflow({
   useEffect(() => {
     let startCheckTimer: number | undefined
     if (!chooseDestination) {
-      dialogRef.current?.showModal()
       startCheckTimer = window.setTimeout(() => void checkConflicts(), 0)
     }
     return () => {
@@ -131,40 +129,6 @@ export function CopyWorkflow({
       </>
     ) : null
 
-  if (!chooseDestination) {
-    return (
-      <dialog
-        aria-labelledby="copy-workflow-title"
-        className="copy-workflow__dialog"
-        onCancel={(event) => {
-          event.preventDefault()
-          onCancel()
-        }}
-        ref={dialogRef}
-      >
-        <h2 id="copy-workflow-title">{actionLabel}</h2>
-        {isChecking && !conflicts ? <p aria-live="polite">Checking {kind} conflicts…</p> : null}
-        {conflictControls}
-        {errorMessage ? <p role="alert">{errorMessage}</p> : null}
-        <div className="copy-workflow__actions">
-          <button onClick={onCancel} type="button">
-            Cancel
-          </button>
-          {conflicts ? (
-            <button disabled={isOperationLocked} onClick={copyHere} type="button">
-              {actionLabel}
-            </button>
-          ) : null}
-          {errorMessage ? (
-            <button disabled={isChecking || isOperationLocked} onClick={() => void checkConflicts()} type="button">
-              Try checking again
-            </button>
-          ) : null}
-        </div>
-      </dialog>
-    )
-  }
-
   return (
     <section aria-label={`${actionLabel} controls`} className="copy-workflow">
       {isChecking ? <p aria-live="polite">Checking {kind} conflicts…</p> : null}
@@ -175,9 +139,11 @@ export function CopyWorkflow({
         <button onClick={onCancel} type="button">
           Cancel
         </button>
-        <button disabled={isChecking || isOperationLocked || destinationPath === '/'} onClick={copyHere} type="button">
-          {conflicts ? actionLabel : `${actionLabel} Here`}
-        </button>
+        {chooseDestination || conflicts ? (
+          <button disabled={isChecking || isOperationLocked || destinationPath === '/'} onClick={copyHere} type="button">
+            {conflicts ? actionLabel : `${actionLabel} Here`}
+          </button>
+        ) : null}
         {errorMessage ? (
           <button disabled={isChecking || isOperationLocked} onClick={() => void checkConflicts()} type="button">
             Try checking again

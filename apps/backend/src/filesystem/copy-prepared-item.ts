@@ -131,7 +131,7 @@ export async function copyPreparedItem(
     const cleanupFailure = await promotePreparedReplacement(preparedPath, target, operationId, index)
     return { bytesWritten, cleanupFailure, matchesPreparedSize }
   } catch (error) {
-    let failure = error
+    let failure = error instanceof Error && error.name === 'AbortError' && signal.aborted ? signal.reason : error
     if (ownsPreparedPath) {
       for (const entry of directories) {
         const destinationPath = join(preparedPath, entry.relativePath)
@@ -140,7 +140,7 @@ export async function copyPreparedItem(
       try {
         await rm(preparedPath, { recursive: true, force: true })
       } catch (cleanupError) {
-        if (!isMissing(cleanupError)) failure = withFilesystemFailure(error, 'Temporary copy data could not be removed.', cleanupError)
+        if (!isMissing(cleanupError)) failure = withFilesystemFailure(failure, 'Temporary copy data could not be removed.', cleanupError)
       }
     }
     throw toFilesystemException(failure)

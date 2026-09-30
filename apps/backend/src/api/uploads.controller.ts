@@ -19,7 +19,7 @@ export class UploadsController {
   @Post('upload/:id/cancel')
   @HttpCode(HttpStatus.ACCEPTED)
   cancelUpload(@Param('id') id: string): void {
-    this.transferService.cancelUpload(id)
+    this.transferService.cancel(id, 'upload')
   }
 
   @Post('upload/preflight')

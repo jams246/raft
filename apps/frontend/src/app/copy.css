@@ -22,16 +22,3 @@
   justify-content: flex-end;
   gap: 0.5rem;
 }
-
-.copy-workflow__dialog {
-  width: min(34rem, calc(100vw - 2rem));
-  max-height: 85vh;
-  overflow: auto;
-  padding: 1.25rem;
-  border: 1px solid var(--outline);
-  color: inherit;
-}
-
-.copy-workflow__dialog::backdrop {
-  background: var(--backdrop);
-}
