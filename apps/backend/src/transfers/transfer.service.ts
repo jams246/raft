@@ -8,6 +8,7 @@ import { ApiException } from '../api/api-exception.js'
 export class TransferService {
   private activeOperation?: TransferState
   private cancellation?: AbortController
+  private progressTimer?: ReturnType<typeof setTimeout>
   private readonly events = new Subject<TransferEvent>()
 
   getSnapshot(): TransferState | null {
@@ -18,8 +19,8 @@ export class TransferService {
     return this.events.subscribe(listener)
   }
 
-  reserveUpload(total: number): TransferState {
-    return this.reserve('upload', total)
+  reserveUpload(total: number, bytesTotal: number | null): TransferState {
+    return this.reserve('upload', total, undefined, bytesTotal)
   }
 
   reserveCopy(total: number, destinationName: string): TransferState {
@@ -30,13 +31,17 @@ export class TransferService {
     return this.reserve('move', total, destinationName)
   }
 
-  private reserve(kind: TransferState['kind'], total: number, destinationName?: string): TransferState {
+  private reserve(kind: TransferState['kind'], total: number, destinationName?: string, bytesTotal: number | null = null): TransferState {
     this.assertIdle()
+    this.clearProgressTimer()
     const operation: TransferState = {
       id: randomUUID(),
       kind,
       current: 0,
       total,
+      phase: 'preparing',
+      bytesProcessed: 0,
+      bytesTotal,
       status: 'running',
       ...(destinationName ? { destinationName } : {})
     }
@@ -46,16 +51,44 @@ export class TransferService {
     return operation
   }
 
-  progress(id: string, current: number, currentName?: string): void {
-    if (this.activeOperation?.id !== id || current < this.activeOperation.current) return
-    if (current === this.activeOperation.current && currentName === this.activeOperation.currentName) return
-    const operation: TransferState = { ...this.activeOperation, current, currentName }
+  progress(id: string, update: Partial<Pick<TransferState, 'current' | 'currentName' | 'phase' | 'bytesProcessed' | 'bytesTotal'>>): void {
+    const activeOperation = this.activeOperation
+    if (activeOperation?.id !== id) return
+    const current = update.current === undefined ? activeOperation.current : Math.max(activeOperation.current, normalizeCount(update.current))
+    const bytesProcessed =
+      update.bytesProcessed === undefined ? activeOperation.bytesProcessed : Math.max(activeOperation.bytesProcessed, normalizeCount(update.bytesProcessed))
+    const requestedTotal = 'bytesTotal' in update ? normalizeTotal(update.bytesTotal) : activeOperation.bytesTotal
+    const stableTotal = activeOperation.bytesTotal === null && activeOperation.phase !== 'preparing' && requestedTotal !== null ? null : requestedTotal
+    const bytesTotal = stableTotal !== null && stableTotal < bytesProcessed ? null : stableTotal
+    const phase = update.phase ?? activeOperation.phase
+    const currentName = update.currentName ?? activeOperation.currentName
+    const changed =
+      current !== activeOperation.current ||
+      currentName !== activeOperation.currentName ||
+      phase !== activeOperation.phase ||
+      bytesProcessed !== activeOperation.bytesProcessed ||
+      bytesTotal !== activeOperation.bytesTotal
+    if (!changed) return
+
+    const operation: TransferState = { ...activeOperation, current, currentName, phase, bytesProcessed, bytesTotal }
     this.activeOperation = operation
-    this.events.next({ type: 'operation_progress', operation })
+    const mustEmitNow = current !== activeOperation.current || currentName !== activeOperation.currentName || phase !== activeOperation.phase
+    if (mustEmitNow) {
+      this.clearProgressTimer()
+      this.emitProgress(operation)
+      return
+    }
+    if (!this.progressTimer) {
+      this.progressTimer = setTimeout(() => {
+        this.progressTimer = undefined
+        if (this.activeOperation?.id === id) this.emitProgress(this.activeOperation)
+      }, 100)
+    }
   }
 
   complete(id: string): void {
     if (this.activeOperation?.id !== id) return
+    this.clearProgressTimer()
     this.activeOperation = undefined
     this.cancellation = undefined
     this.events.next({ type: 'operation_completed', operationId: id })
@@ -63,6 +96,7 @@ export class TransferService {
 
   fail(id: string, message: string): void {
     if (this.activeOperation?.id !== id) return
+    this.clearProgressTimer()
     this.activeOperation = undefined
     this.cancellation = undefined
     this.events.next({ type: 'operation_failed', operationId: id, message })
@@ -87,4 +121,22 @@ export class TransferService {
   assertActive(id: string): void {
     if (this.activeOperation?.id !== id) throw new ApiException('operation_busy', 'The transfer is no longer active.', HttpStatus.CONFLICT)
   }
+
+  private emitProgress(operation: TransferState): void {
+    this.events.next({ type: 'operation_progress', operation })
+  }
+
+  private clearProgressTimer(): void {
+    if (!this.progressTimer) return
+    clearTimeout(this.progressTimer)
+    this.progressTimer = undefined
+  }
+}
+
+function normalizeCount(value: number): number {
+  return Number.isFinite(value) && value >= 0 ? value : 0
+}
+
+function normalizeTotal(value: number | null | undefined): number | null {
+  return value !== null && value !== undefined && Number.isFinite(value) && value >= 0 ? value : null
 }

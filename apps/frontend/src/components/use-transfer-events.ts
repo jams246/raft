@@ -7,7 +7,8 @@ export function useTransferEvents(
   visiblePaths: string[],
   refreshListings: () => void,
   refreshDirectory: (path: string) => void,
-  onTransferFinished: () => void
+  onTransferFinished: () => void,
+  onTransferStarted: () => void
 ) {
   const [operation, setOperation] = useState<TransferState | null>(null)
   const [notice, setNotice] = useState('')
@@ -36,11 +37,14 @@ export function useTransferEvents(
       }
 
       if (event.type === 'operation_state') {
-        if (!event.operation && hadActiveOperation.current) onTransferFinished()
+        const operationEnded = !event.operation && hadActiveOperation.current
+        if (operationEnded) onTransferFinished()
+        if (event.operation) onTransferStarted()
         hadActiveOperation.current = event.operation !== null
         setConnection({ pathQuery, isConnected: true })
         setOperation(event.operation)
-        setNotice('')
+        if (event.operation) setNotice('')
+        else if (operationEnded) setNotice('Operation ended.')
         refreshListings()
         return
       }
@@ -53,21 +57,24 @@ export function useTransferEvents(
       if (event.type === 'operation_started' || event.type === 'operation_progress') {
         hadActiveOperation.current = true
         setOperation(event.operation)
-        if (event.type === 'operation_started') setNotice('')
+        if (event.type === 'operation_started') {
+          onTransferStarted()
+          setNotice('')
+        }
         return
       }
 
       setOperation(null)
       hadActiveOperation.current = false
       onTransferFinished()
-      setNotice(event.type === 'operation_failed' ? event.message : '')
+      setNotice(event.type === 'operation_failed' ? event.message : 'Operation completed.')
     }
 
     return () => {
       isCurrent = false
       eventSource.close()
     }
-  }, [onTransferFinished, pathQuery, refreshDirectory, refreshListings])
+  }, [onTransferFinished, onTransferStarted, pathQuery, refreshDirectory, refreshListings])
 
   return { operation, isConnected: connection.pathQuery === pathQuery && connection.isConnected, notice }
 }

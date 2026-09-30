@@ -4,21 +4,21 @@ import { mkdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { ApiException } from '../api/api-exception.js'
+import type { StoredUploadPart } from '../api/upload-request.js'
 import { toFilesystemException, withFilesystemFailure } from './errors.js'
 import { FilesystemService } from './filesystem.service.js'
 import { parseUploadManifest } from './upload-validation.js'
 import { resolveVirtualPath } from './paths.js'
 import type { ValidatedPath } from './paths.js'
 import { getConflicts, promotePreparedReplacement, resolveReplacementTargets, unusedInternalPath, validateIncomingNames } from './prepared-replacement.js'
-
-interface StoredPart {
-  fieldname: string
-  path: string
-}
+import { TransferService } from '../transfers/transfer.service.js'
 
 @Injectable()
 export class UploadFilesystemService {
-  constructor(private readonly filesystemService: FilesystemService) {}
+  constructor(
+    private readonly filesystemService: FilesystemService,
+    private readonly transferService: TransferService
+  ) {}
 
   async validateDestination(virtualPath: string): Promise<ValidatedPath> {
     if (virtualPath === '/') {
@@ -65,11 +65,21 @@ export class UploadFilesystemService {
     virtualPath: string,
     stagingPath: string,
     rawManifest: unknown,
-    storedParts: StoredPart[],
+    storedParts: StoredUploadPart[],
     policy: UploadConflictPolicy,
     total: number,
+    bytesTotal: number | null,
     signal: AbortSignal
   ): Promise<void> {
+    const storedBytes = storedParts.reduce((sum, part) => sum + part.size, 0)
+    const operation = this.transferService.getSnapshot()
+    const bytesProcessed = Number.isFinite(storedBytes) && storedBytes >= 0 ? storedBytes : (operation?.bytesProcessed ?? 0)
+    const activeBytesTotal = operation?.id === operationId ? operation.bytesTotal : null
+    this.transferService.progress(operationId, {
+      phase: 'finalizing',
+      bytesProcessed,
+      bytesTotal: bytesTotal !== null && activeBytesTotal !== null && storedBytes === bytesTotal ? bytesTotal : null
+    })
     const manifest = parseUploadManifest(rawManifest, total, storedParts.length)
     if (policy !== 'rename' && policy !== 'overwrite') throw invalidUpload()
 
@@ -93,6 +103,7 @@ export class UploadFilesystemService {
           signal.throwIfAborted()
           const cleanupFailure = await promotePreparedReplacement(preparedPaths[index], target, operationId, index)
           completedItems += 1
+          this.transferService.progress(operationId, { current: completedItems, currentName: manifest.items[index].name })
           if (cleanupFailure) throw cleanupFailure
         }
         signal.throwIfAborted()
@@ -114,7 +125,7 @@ export class UploadFilesystemService {
     })
   }
 
-  private async prepareIncomingObjects(stagingPath: string, manifest: UploadManifest, storedParts: StoredPart[], signal: AbortSignal): Promise<string[]> {
+  private async prepareIncomingObjects(stagingPath: string, manifest: UploadManifest, storedParts: StoredUploadPart[], signal: AbortSignal): Promise<string[]> {
     const parts = new Map<number, string>()
     for (const part of storedParts) {
       const match = /^file(\d+)$/.exec(part.fieldname)

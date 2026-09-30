@@ -58,10 +58,12 @@ export class UploadsController {
       files ?? [],
       policy,
       operation.total,
+      operation.bytesTotal,
       operation.signal
     )
     await this.uploadFilesystemService.cleanupStagingDirectory(operation.stagingPath)
     operation.signal.throwIfAborted()
     this.transferService.complete(operation.id)
+    operation.cleanupListeners()
   }
 }

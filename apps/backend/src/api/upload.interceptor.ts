@@ -1,6 +1,6 @@
 import { AnyFilesInterceptor } from '@nestjs/platform-express'
 import { Injectable, type CallHandler, type ExecutionContext, type NestInterceptor } from '@nestjs/common'
-import { createWriteStream } from 'node:fs'
+import { createWriteStream, type WriteStream } from 'node:fs'
 import { unlink } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
@@ -16,6 +16,7 @@ import { TransferService } from '../transfers/transfer.service.js'
 
 interface IncomingFile {
   fieldname: string
+  originalname: string
   stream: Readable
 }
 
@@ -59,25 +60,28 @@ export class UploadInterceptor implements NestInterceptor {
 
   private createStorage(request: UploadRequest): UploadStorage {
     const upload = request.transferUpload!
-    let items: Array<{ name: string; remaining: number }> | undefined
-    const pendingParts = new Map<number, number>()
-    let current = 0
-    const updateProgress = (fieldname: string) => {
-      const partMatch = /^file(\d+)$/.exec(fieldname)
-      if (!partMatch) return
-      if (!items) {
-        const manifest = parseUploadManifest(readUploadManifest(request), upload.total)
-        items = manifest.items.map((item, index) => {
-          for (const file of item.files) pendingParts.set(file.part, index)
-          return { name: item.name, remaining: item.files.length }
-        })
+    let itemNamesByPart: Map<number, string> | undefined
+    let completedBytes = 0
+    const activeOutputs = new Set<WriteStream>()
+    let samplingTimer: ReturnType<typeof setInterval> | undefined
+    const reportProgress = () => {
+      const bytesProcessed = completedBytes + [...activeOutputs].reduce((total, output) => total + output.bytesWritten, 0)
+      if (!Number.isFinite(bytesProcessed) || bytesProcessed < 0) return
+      if (upload.bytesTotal !== null && bytesProcessed > upload.bytesTotal) upload.bytesTotal = null
+      this.transferService.progress(upload.id, { phase: 'transferring', bytesProcessed, bytesTotal: upload.bytesTotal })
+    }
+    const getItemName = (fieldname: string): string | undefined => {
+      const match = /^file(\d+)$/.exec(fieldname)
+      if (!match) return undefined
+      if (!itemNamesByPart) {
+        try {
+          const manifest = parseUploadManifest(readUploadManifest(request), upload.total)
+          itemNamesByPart = new Map(manifest.items.flatMap((item) => item.files.map((file) => [file.part, item.name] as const)))
+        } catch {
+          return undefined
+        }
       }
-      const part = Number(partMatch[1])
-      const itemIndex = pendingParts.get(part)
-      if (itemIndex === undefined) return
-      pendingParts.delete(part)
-      items[itemIndex].remaining -= 1
-      if (items[itemIndex].remaining === 0) this.transferService.progress(upload.id, ++current, items[itemIndex].name)
+      return itemNamesByPart.get(Number(match[1]))
     }
 
     return {
@@ -85,18 +89,28 @@ export class UploadInterceptor implements NestInterceptor {
         const filename = randomUUID()
         const path = join(upload.stagingPath, filename)
         const output = createWriteStream(path, { flags: 'wx' })
+        const currentName = getItemName(file.fieldname) ?? file.originalname
+        this.transferService.progress(upload.id, { phase: 'transferring', currentName })
+        activeOutputs.add(output)
+        if (!samplingTimer) samplingTimer = setInterval(reportProgress, 100)
         upload.activeStreams.add(file.stream)
         const write = (async () => {
           try {
             await pipeline(file.stream, output, { signal: upload.signal })
-            updateProgress(file.fieldname)
             callback(null, { destination: upload.stagingPath, filename, path, size: output.bytesWritten })
           } catch (error) {
             await unlink(path).catch(() => undefined)
             callback(asError(error))
             throw error
           } finally {
+            completedBytes += output.bytesWritten
+            activeOutputs.delete(output)
             upload.activeStreams.delete(file.stream)
+            reportProgress()
+            if (activeOutputs.size === 0 && samplingTimer) {
+              clearInterval(samplingTimer)
+              samplingTimer = undefined
+            }
           }
         })()
         upload.pendingWrites.add(write)
@@ -116,6 +130,7 @@ export class UploadInterceptor implements NestInterceptor {
 
   private async cleanupFailedRequest(request: UploadRequest, error: unknown): Promise<void> {
     const upload = request.transferUpload
+    upload?.cleanupListeners()
     if (!upload || this.transferService.getSnapshot()?.id !== upload.id) return
     await Promise.allSettled([...upload.pendingWrites])
     try {

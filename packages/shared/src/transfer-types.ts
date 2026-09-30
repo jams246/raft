@@ -5,6 +5,9 @@ export interface TransferState {
   kind: TransferKind
   current: number
   total: number
+  phase: 'preparing' | 'transferring' | 'finalizing'
+  bytesProcessed: number
+  bytesTotal: number | null
   currentName?: string
   destinationName?: string
   status: 'running'

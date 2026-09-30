@@ -17,6 +17,36 @@
   display: none;
 }
 
+.operation-status {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.operation-status__item,
+.operation-status__phase,
+.operation-status__connection,
+.operation-status__percentage,
+.operation-status__bytes,
+.operation-status__items,
+.operation-status__notice {
+  margin: 0;
+}
+
+.operation-status__announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.operation-status__progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
 .upload-dialog {
   width: min(34rem, calc(100vw - 2rem));
   max-height: 85vh;

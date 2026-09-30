@@ -1,15 +1,12 @@
 import { Injectable } from '@nestjs/common'
 import type { ConflictPolicy, CopyConflict } from '@raft/shared'
-import { cp, rm } from 'node:fs/promises'
-import { basename, dirname } from 'node:path'
-import { ApiException } from '../api/api-exception.js'
+import { basename } from 'node:path'
 import { TransferService } from '../transfers/transfer.service.js'
 import { FilesystemService } from './filesystem.service.js'
-import { toFilesystemException, withFilesystemFailure } from './errors.js'
+import { withFilesystemFailure } from './errors.js'
 import { getCopyMoveConflicts, validateCopyMoveSelection, validateCopyMoveTargets } from './copy-move-validation.js'
-import { promotePreparedReplacement, resolveReplacementTargets, unusedInternalPath } from './prepared-replacement.js'
-import type { PreparedDestination } from './prepared-replacement.js'
-import type { ValidatedPath } from './paths.js'
+import { resolveReplacementTargets } from './prepared-replacement.js'
+import { copyPreparedItem, prepareCopySources } from './copy-prepared-item.js'
 
 @Injectable()
 export class CopyFilesystemService {
@@ -26,19 +23,41 @@ export class CopyFilesystemService {
   copy(operationId: string, sourcePaths: string[], destinationPath: string, policy: ConflictPolicy, signal: AbortSignal): Promise<void> {
     return this.filesystemService.runTransferMutation(operationId, async () => {
       signal.throwIfAborted()
-      const { sources, destination, candidates } = await validateCopyMoveSelection(this.filesystemService, sourcePaths, destinationPath, 'copy')
+      const { sources, destination, candidates } = await validateCopyMoveSelection(this.filesystemService, sourcePaths, destinationPath, 'copy', true)
       const targets = await resolveReplacementTargets(destination.absolutePath, candidates, policy)
       validateCopyMoveTargets(sources, destination, targets, 'copy')
+      const prepared = await prepareCopySources(sources, (currentName) => this.transferService.progress(operationId, { currentName }), signal)
+      this.transferService.progress(operationId, { phase: 'transferring', bytesTotal: prepared.bytesTotal })
 
       let completedItems = 0
+      let bytesProcessed = 0
+      let bytesTotal = prepared.bytesTotal
       try {
-        for (const [index, source] of sources.entries()) {
+        for (const [index, source] of prepared.sources.entries()) {
           signal.throwIfAborted()
-          this.transferService.progress(operationId, completedItems, basename(source.virtualPath))
-          const cleanupFailure = await copyPreparedItem(source, targets[index], operationId, index, signal)
+          this.transferService.progress(operationId, { phase: 'transferring', currentName: basename(source.source.virtualPath) })
+          const result = await copyPreparedItem(
+            source,
+            targets[index],
+            operationId,
+            index,
+            signal,
+            (itemBytes) => this.transferService.progress(operationId, { bytesProcessed: bytesProcessed + itemBytes }),
+            () => {
+              bytesTotal = null
+              this.transferService.progress(operationId, { bytesTotal: null })
+            },
+            () => this.transferService.progress(operationId, { phase: 'finalizing' })
+          )
+          bytesProcessed += result.bytesWritten
           completedItems += 1
-          this.transferService.progress(operationId, completedItems, basename(source.virtualPath))
-          if (cleanupFailure) throw cleanupFailure
+          this.transferService.progress(operationId, {
+            current: completedItems,
+            currentName: basename(source.source.virtualPath),
+            bytesProcessed,
+            bytesTotal
+          })
+          if (result.cleanupFailure) throw result.cleanupFailure
         }
         signal.throwIfAborted()
       } catch (error) {
@@ -48,23 +67,5 @@ export class CopyFilesystemService {
         throw error
       }
     })
-  }
-}
-
-export async function copyPreparedItem(
-  source: ValidatedPath,
-  target: PreparedDestination,
-  operationId: string,
-  index: number,
-  signal: AbortSignal
-): Promise<ApiException | undefined> {
-  const preparedPath = await unusedInternalPath(dirname(target.path), 'tmp', operationId, index + 1)
-  try {
-    await cp(source.absolutePath, preparedPath, { errorOnExist: true, force: false, recursive: source.isDirectory })
-    signal.throwIfAborted()
-    return await promotePreparedReplacement(preparedPath, target, operationId, index)
-  } catch (error) {
-    await rm(preparedPath, { recursive: true, force: true }).catch(() => undefined)
-    throw toFilesystemException(error)
   }
 }

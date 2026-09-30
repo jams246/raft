@@ -60,9 +60,9 @@ export async function resolveVirtualPath(virtualPath: string): Promise<Validated
   return { virtualPath, absolutePath, isDirectory: currentStat.isDirectory() }
 }
 
-export async function listSupportedTree(validatedPath: ValidatedPath): Promise<SupportedTreeEntry[]> {
+export async function listSupportedTree(validatedPath: ValidatedPath, signal?: AbortSignal): Promise<SupportedTreeEntry[]> {
   const entries: SupportedTreeEntry[] = []
-  await visitSupportedTree(validatedPath.absolutePath, '', (entry) => entries.push(entry))
+  await visitSupportedTree(validatedPath.absolutePath, '', (entry) => entries.push(entry), signal)
   return entries
 }
 
@@ -70,7 +70,13 @@ export async function validateSupportedTree(validatedPath: ValidatedPath): Promi
   await visitSupportedTree(validatedPath.absolutePath, '')
 }
 
-async function visitSupportedTree(absolutePath: string, relativePath: string, visit?: (entry: SupportedTreeEntry) => void): Promise<void> {
+async function visitSupportedTree(
+  absolutePath: string,
+  relativePath: string,
+  visit?: (entry: SupportedTreeEntry) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  signal?.throwIfAborted()
   const stats = await inspectComponent(absolutePath)
   if (!stats.isDirectory() && !stats.isFile()) {
     throw new ApiException('unsupported', 'The requested path is unsupported.', HttpStatus.BAD_REQUEST)
@@ -82,7 +88,7 @@ async function visitSupportedTree(absolutePath: string, relativePath: string, vi
   const names = await readdir(absolutePath)
   if (visit) names.sort((left, right) => left.localeCompare(right))
   for (const name of names) {
-    await visitSupportedTree(join(absolutePath, name), relativePath ? `${relativePath}/${name}` : name, visit)
+    await visitSupportedTree(join(absolutePath, name), relativePath ? `${relativePath}/${name}` : name, visit, signal)
   }
 }
 

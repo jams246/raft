@@ -6,7 +6,9 @@ export interface UploadRequestState {
   directory: string
   stagingPath: string
   total: number
+  bytesTotal: number | null
   signal: AbortSignal
+  cleanupListeners: () => void
   pendingWrites: Set<Promise<void>>
   activeStreams: Set<Readable>
 }

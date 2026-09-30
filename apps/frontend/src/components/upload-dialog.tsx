@@ -38,6 +38,8 @@ export function UploadDialog({ directory, selection, isOperationLocked, onClose,
       setErrorMessage('')
       try {
         const query = new URLSearchParams({ directory, total: String(selection.manifest.items.length), policy: uploadPolicy })
+        const bytesTotal = selection.files.reduce((total, file) => total + file.size, 0)
+        if (Number.isSafeInteger(bytesTotal)) query.set('bytesTotal', String(bytesTotal))
         const request = fetch(`/api/upload?${query}`, { method: 'POST', body: createUploadFormData(selection), signal: controller.signal })
         onRequestStarted(controller)
         dialogRef.current?.close()

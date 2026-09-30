@@ -1,12 +1,11 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import type { TransferState } from '@raft/shared'
 import { CopyWorkflow } from './copy-workflow'
 import { FileBrowserPane } from './file-browser-pane'
 import { createFileBrowserPaneState, type FileBrowserPaneState } from './file-browser-pane-state'
 import { useTransferEvents } from './use-transfer-events'
-import { CancelUploadButton } from './cancel-upload-button'
+import { OperationStatus } from './operation-status'
 
 interface TransferWorkflowState {
   kind: 'copy' | 'move'
@@ -50,14 +49,24 @@ export function FileBrowser() {
     setUploadPending(false)
     setPendingTransferKind(undefined)
   }, [])
+  const clearTransferErrors = useCallback(() => {
+    setUploadError('')
+    setTransferError('')
+  }, [])
   const destinationPane = transferWorkflow?.destinationPane
   const visiblePanes = destinationPane ? [...panes, destinationPane] : panes
   const visiblePaths = [...new Set(visiblePanes.map((pane) => pane.path))]
-  const { operation, isConnected, notice } = useTransferEvents(visiblePaths, refreshVisibleListings, refreshVisibleDirectory, finishTransfer)
+  const { operation, isConnected, notice } = useTransferEvents(
+    visiblePaths,
+    refreshVisibleListings,
+    refreshVisibleDirectory,
+    finishTransfer,
+    clearTransferErrors
+  )
   const isDualPane = visiblePanes.length === 2
   const transferPending = pendingTransferKind !== undefined
   const isOperationLocked = !isConnected || operation !== null || uploadPending || transferPending
-  const displayNotice = notice || uploadError || transferError
+  const displayNotice = uploadError || transferError || notice
 
   function changePane(paneId: number, update: (pane: FileBrowserPaneState) => FileBrowserPaneState) {
     if (destinationPane?.id === paneId) {
@@ -83,6 +92,7 @@ export function FileBrowser() {
     uploadController.current = controller
     setUploadPending(true)
     setUploadError('')
+    setTransferError('')
   }, [])
   const finishUploadRequest = useCallback((controller: AbortController, error?: string) => {
     if (uploadController.current !== controller) return
@@ -97,6 +107,7 @@ export function FileBrowser() {
       setTransferWorkflow(undefined)
       setPendingTransferKind(kind)
       setTransferError('')
+      setUploadError('')
     },
     [destinationPane, setTransferWorkflow]
   )
@@ -185,31 +196,13 @@ export function FileBrowser() {
           sourcePaths={transferWorkflow.sourcePaths}
         />
       ) : null}
-      <section
-        aria-label="Operation status"
-        aria-live="polite"
-        className="file-browser__operation-area"
-        hidden={!operation && !displayNotice && !uploadPending && !transferPending}
-      >
-        {operation ? (
-          <>
-            <p>{getTransferDescription(operation)}</p>
-            <p>
-              {operation.current} / {operation.total} items
-            </p>
-            {operation.kind === 'upload' ? <CancelUploadButton isConnected={isConnected} key={operation.id} operationId={operation.id} /> : null}
-          </>
-        ) : null}
-        {!operation && uploadPending ? <p>Starting upload…</p> : null}
-        {!operation && transferPending ? <p>Starting {pendingTransferKind}…</p> : null}
-        {displayNotice ? <p role="alert">{displayNotice}</p> : null}
-      </section>
+      <OperationStatus
+        isConnected={isConnected}
+        notice={displayNotice}
+        operation={operation}
+        transferPendingKind={pendingTransferKind}
+        uploadPending={uploadPending}
+      />
     </main>
   )
-}
-
-function getTransferDescription(operation: TransferState): string {
-  if (operation.kind === 'upload') return `Uploading “${operation.currentName ?? 'items'}”`
-  const action = operation.kind === 'move' ? 'Moving' : 'Copying'
-  return `${action} “${operation.currentName ?? 'items'}” to ${operation.destinationName ?? 'destination'}`
 }

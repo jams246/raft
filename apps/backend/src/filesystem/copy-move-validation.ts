@@ -8,7 +8,13 @@ import type { ValidatedPath } from './paths.js'
 import { getConflicts } from './prepared-replacement.js'
 import type { ReplacementCandidate } from './prepared-replacement.js'
 
-export async function validateCopyMoveSelection(filesystemService: FilesystemService, sourcePaths: string[], destinationPath: string, kind: 'copy' | 'move') {
+export async function validateCopyMoveSelection(
+  filesystemService: FilesystemService,
+  sourcePaths: string[],
+  destinationPath: string,
+  kind: 'copy' | 'move',
+  deferTreeValidation = false
+) {
   const action = kind === 'copy' ? 'copied' : 'moved'
   if (sourcePaths.length === 0) throw invalidRequest(kind)
   const sources = await Promise.all(
@@ -17,7 +23,7 @@ export async function validateCopyMoveSelection(filesystemService: FilesystemSer
       if (components.length <= 1) {
         throw new ApiException('protected_root', `Root entries cannot be ${action}.`, HttpStatus.BAD_REQUEST)
       }
-      return filesystemService.validateExistingPath(sourcePath)
+      return deferTreeValidation ? resolveVirtualPath(sourcePath) : filesystemService.validateExistingPath(sourcePath)
     })
   )
   if (new Set(sources.map((source) => source.virtualPath)).size !== sources.length) throw invalidRequest(kind)
