@@ -4,7 +4,7 @@ import './upload.css'
 import './copy.css'
 
 export const metadata: Metadata = {
-  title: 'File Browser',
+  title: 'RAFT - Remote Access File Tool',
   description: 'Browse mounted files from one focused workspace.'
 }
 
