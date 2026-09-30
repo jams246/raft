@@ -59,6 +59,7 @@ services:
       context: .
       target: production
     ports:
-      - '3000:3000'
+      - '${PORT:-3000}:${PORT:-3000}'
     environment:
+      PORT: ${PORT:-3000}
       MIN_FREE_SPACE: ${MIN_FREE_SPACE-1GiB}
