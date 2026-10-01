@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import Image from 'next/image'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ConfigurationWarning } from './configuration-warning'
 import { CopyWorkflow } from './copy-workflow'
 import { FileBrowserPane } from './file-browser-pane'
-import { createFileBrowserPaneState, type FileBrowserPaneState } from './file-browser-pane-state'
+import { createFileBrowserPaneState, navigatePane, type FileBrowserPaneState } from './file-browser-pane-state'
 import { useTransferEvents } from './use-transfer-events'
 import { OperationStatus } from './operation-status'
 
@@ -27,6 +28,17 @@ export function FileBrowser() {
   const nextPaneId = useRef(1)
   const uploadController = useRef<AbortController | undefined>(undefined)
   const transferController = useRef<AbortController | undefined>(undefined)
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('raft:dual-pane') !== 'true') return
+      nextPaneId.current = 2
+      // oxlint-disable-next-line react/set-state-in-effect -- Restore browser-only storage after hydration to keep server markup consistent.
+      setPanes([createFileBrowserPaneState(0, '/'), createFileBrowserPaneState(1, '/')])
+    } catch {
+      // Browser storage may be blocked; keep the default layout.
+    }
+  }, [])
 
   const registerListingRefresh = useCallback((paneId: number, path: string, refresh?: () => void) => {
     if (refresh) refreshCallbacks.current.set(paneId, { path, refresh })
@@ -78,6 +90,12 @@ export function FileBrowser() {
   }
 
   function toggleDualPane() {
+    try {
+      localStorage.setItem('raft:dual-pane', String(!isDualPane))
+    } catch {
+      // Keep toggling available when browser storage is blocked.
+    }
+
     if (!isDualPane) {
       const currentPane = panes[0]
       setPanes([...panes, createFileBrowserPaneState(nextPaneId.current++, currentPane.path)])
@@ -147,7 +165,20 @@ export function FileBrowser() {
       <header className="file-browser__header">
         <div>
           <h1 className="file-browser__title">
-            RAFT<span className="file-browser__subtitle">Remote Access File Tool</span>
+            <button
+              className="file-browser__title-link"
+              aria-label="RAFT, return to My files"
+              disabled={Boolean(transferWorkflow)}
+              onClick={() => changePane(mostRecentlyInteractedPaneId.current, (pane) => navigatePane(pane, '/'))}
+              type="button"
+            >
+              <Image src="/icon.png" alt="" width={32} height={32} unoptimized />
+              RAFT
+            </button>
+            <span className="file-browser__subtitle">
+              <span className="file-browser__initial">R</span>emote <span className="file-browser__initial">A</span>ccess{' '}
+              <span className="file-browser__initial">F</span>ile <span className="file-browser__initial">T</span>ool
+            </span>
           </h1>
           {destinationPane && transferWorkflow ? (
             <p className="copy-workflow__summary">
