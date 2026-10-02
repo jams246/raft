@@ -1,7 +1,7 @@
 'use client'
 
 import type { FileEntry } from '@raft/shared'
-import { useState, type ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { DeleteConfirmationDialog } from '../file-operations/delete-confirmation-dialog'
 import { canDownloadSelection, downloadSelection } from '../file-operations/file-browser-download'
 import type { FileBrowserPaneState } from './file-browser-pane-state'

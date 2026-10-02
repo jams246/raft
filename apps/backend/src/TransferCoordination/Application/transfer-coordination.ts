@@ -1,12 +1,14 @@
 import { Failure, toFailure } from '../../shared/failures.js'
 import {
-  TransferOperation,
-  type ProgressUpdate,
   type TransferEvent as DomainTransferEvent,
+  type TransferState as DomainTransferState,
+  type ProgressUpdate,
   type TransferKind,
-  type TransferState as DomainTransferState
+  TransferOperation
 } from '../Domain/transfer-operation.js'
 import type { TransferRuntimePort } from './ports.js'
+
+const PROGRESS_INTERVAL_MS = 100
 
 export type TransferEvent = DomainTransferEvent
 export type TransferState = DomainTransferState
@@ -70,7 +72,7 @@ export class TransferCoordination {
       active.timer = this.runtime.schedule(() => {
         active.timer = undefined
         if (this.active === active) this.runtime.publish({ type: 'operation_progress', operation: active.operation.state })
-      }, 100)
+      }, PROGRESS_INTERVAL_MS)
     }
   }
 

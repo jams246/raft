@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type SubmitEvent } from 'react'
+import { type SubmitEvent, useEffect, useRef, useState } from 'react'
 
 interface DeleteConfirmationDialogProps {
   paths: string[]
@@ -32,7 +32,7 @@ export function DeleteConfirmationDialog({ paths, isLocked, onClose, onFinish }:
         body: JSON.stringify({ paths })
       })
       if (!response.ok) {
-        const apiError = (await response.json().catch(() => undefined)) as { message?: string } | undefined
+        const apiError: { message?: string } | undefined = await response.json().catch(() => undefined)
         throw new Error(apiError?.message ?? 'Unable to delete selected items.')
       }
       dialogRef.current?.close()
@@ -67,7 +67,12 @@ export function DeleteConfirmationDialog({ paths, isLocked, onClose, onFinish }:
           </div>
         </>
       ) : (
-        <form className="delete-confirmation-dialog__form" onSubmit={(event) => void deleteItems(event)}>
+        <form
+          className="delete-confirmation-dialog__form"
+          onSubmit={(event) => {
+            void deleteItems(event)
+          }}
+        >
           <p>This permanently deletes the selected files and folders.</p>
           <div className="delete-confirmation-dialog__actions">
             <button disabled={isSubmitting} onClick={() => dialogRef.current?.close()} type="button">

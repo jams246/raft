@@ -24,12 +24,12 @@ export function useTransferDestination({ panes, setPanes, createPane }: ReturnTy
   }
 
   function requestTransfer(kind: 'copy' | 'move', sourcePane: FileBrowserPaneState, sourcePaths: string[]) {
-    const destinationPane = panes.length === 2 ? panes.find((pane) => pane.id !== sourcePane.id) : undefined
+    const existingDestinationPane = panes.length === 2 ? panes.find((pane) => pane.id !== sourcePane.id) : undefined
     setTransferWorkflow({
       kind,
       sourcePaths: [...sourcePaths],
-      destinationPath: destinationPane?.path ?? '/',
-      destinationPane: destinationPane ? undefined : createPane('/')
+      destinationPath: existingDestinationPane?.path ?? '/',
+      destinationPane: existingDestinationPane ? undefined : createPane('/')
     })
   }
 

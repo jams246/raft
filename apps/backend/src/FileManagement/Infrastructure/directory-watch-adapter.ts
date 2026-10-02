@@ -1,5 +1,7 @@
-import { watch, type FSWatcher } from 'node:fs'
+import { type FSWatcher, watch } from 'node:fs'
 import { toFilesystemFailure } from './filesystem-failures.js'
+
+const WATCH_DEBOUNCE_MS = 75
 
 interface DirectoryWatch {
   watcher: FSWatcher
@@ -27,7 +29,7 @@ export class DirectoryWatchAdapter {
         createdWatch.debounce = setTimeout(() => {
           createdWatch.debounce = undefined
           createdWatch.listeners.forEach((listener) => listener.onChange())
-        }, 75)
+        }, WATCH_DEBOUNCE_MS)
       }
       createdWatch.watcher.on('change', notify)
       createdWatch.watcher.on('error', () => {

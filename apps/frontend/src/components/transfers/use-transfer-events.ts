@@ -22,16 +22,16 @@ export function useTransferEvents(
   useLayoutEffect(() => {
     const eventSource = new EventSource(`/api/events?${pathQuery}`)
     let isCurrent = true
-    eventSource.onerror = () => {
+    eventSource.addEventListener('error', () => {
       if (!isCurrent) return
       setConnection({ pathQuery, isConnected: false })
       refreshListings()
-    }
-    eventSource.onmessage = (message) => {
+    })
+    eventSource.addEventListener('message', (message) => {
       if (!isCurrent) return
       let event: TransferEvent
       try {
-        event = JSON.parse(message.data) as TransferEvent
+        event = JSON.parse(message.data)
       } catch {
         return
       }
@@ -49,6 +49,10 @@ export function useTransferEvents(
         return
       }
 
+      handleTransferEvent(event)
+    })
+
+    function handleTransferEvent(event: Exclude<TransferEvent, { type: 'operation_state' }>) {
       if (event.type === 'directory_changed') {
         refreshDirectory(event.path)
         return

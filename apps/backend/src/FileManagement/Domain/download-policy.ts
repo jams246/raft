@@ -1,6 +1,8 @@
 import { Failure } from '../../shared/failures.js'
 import { validateVirtualPath } from './path-policy.js'
 
+const MAX_ZIP_NAME_BYTES = 0xffff
+
 export function assertCanDownload(path: string): void {
   if (validateVirtualPath(path).length === 0) throw new Failure('invalid_path', 'The requested path is invalid.')
 }
@@ -10,7 +12,7 @@ export function assertUniqueDownloadNames(names: string[]): void {
 }
 
 export function assertSafeArchiveName(name: string, isDirectory: boolean): void {
-  if (name.includes('\\') || /^\w+:/.test(name) || new TextEncoder().encode(name).byteLength + Number(isDirectory) > 0xffff) {
+  if (name.includes('\\') || /^\w+:/.test(name) || new TextEncoder().encode(name).byteLength + Number(isDirectory) > MAX_ZIP_NAME_BYTES) {
     throw new Failure('unsupported', 'Selected items contain names that cannot be safely stored in a ZIP.')
   }
 }

@@ -4,6 +4,7 @@ import type { Response } from 'express'
 import { Failure, toFailure } from '../../shared/failures.js'
 import { toApiFailureResponse, toPresentationFailure } from '../../shared/api-failure.filter.js'
 import { FileManagement } from '../Application/file-management.js'
+import type { DownloadPlan } from '../Application/ports.js'
 import { DownloadUseCases } from '../Application/downloads.js'
 
 @Controller()
@@ -37,29 +38,33 @@ export class FilesController {
     }
 
     const plan = await this.downloads.prepare(virtualPaths)
-    if (plan.type === 'file') {
-      const { fileName, stream } = await this.files.openFileForDownload(plan.virtualPath)
-      if (response.destroyed) {
-        stream.destroy()
-        return
-      }
-      response.attachment(fileName).type('application/octet-stream')
-      response.once('close', () => stream.destroy())
-      stream.once('error', (error: unknown) => {
-        if (response.headersSent) {
-          response.destroy()
-          return
-        }
-        response.removeHeader('Content-Disposition')
-        response.removeHeader('Content-Type')
-        const failure = toPresentationFailure(error) ?? toFailure(error)
-        const mapped = toApiFailureResponse(failure)
-        response.status(mapped.status).json(mapped.body)
-      })
-      stream.pipe(response)
+    if (plan.type === 'file') return this.sendFile(plan.virtualPath, response)
+    this.sendArchive(plan, response)
+  }
+
+  private async sendFile(virtualPath: string, response: Response): Promise<void> {
+    const { fileName, stream } = await this.files.openFileForDownload(virtualPath)
+    if (response.destroyed) {
+      stream.destroy()
       return
     }
+    response.attachment(fileName).type('application/octet-stream')
+    response.once('close', () => stream.destroy())
+    stream.once('error', (error: unknown) => {
+      if (response.headersSent) {
+        response.destroy()
+        return
+      }
+      response.removeHeader('Content-Disposition')
+      response.removeHeader('Content-Type')
+      const failure = toPresentationFailure(error) ?? toFailure(error)
+      const mapped = toApiFailureResponse(failure)
+      response.status(mapped.status).json(mapped.body)
+    })
+    stream.pipe(response)
+  }
 
+  private sendArchive(plan: Extract<DownloadPlan, { type: 'archive' }>, response: Response): void {
     if (response.destroyed) return
     const archive = this.downloads.createArchive(plan)
     const stop = () => archive.stop()

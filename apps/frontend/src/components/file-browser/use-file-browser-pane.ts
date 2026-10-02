@@ -1,11 +1,15 @@
 'use client'
 
 import type { FileEntry } from '@raft/shared'
-import { useEffect, useLayoutEffect, useMemo, useRef, type MouseEvent } from 'react'
+import { type MouseEvent, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { FileBrowserPaneProps } from './file-browser-pane'
-import { sortFileEntries, type SortColumn } from './file-browser-list'
+import { type SortColumn, sortFileEntries } from './file-browser-list'
 import { navigatePane, selectPaneEntry, sortPane, traversePaneHistory } from './file-browser-pane-state'
 import { useDirectoryListing } from './use-directory-listing'
+
+const BACK_MOUSE_BUTTON = 3
+
+const FORWARD_MOUSE_BUTTON = 4
 
 type PaneInteractionOptions = Pick<
   FileBrowserPaneProps,
@@ -21,6 +25,8 @@ export function useFileBrowserPane({ pane, isFrozen, isNavigationOnly, onChangeP
   const isEmpty = pane.path === '/' ? !entries.some((entry) => entry.type === 'directory') : entries.length === 0
   useLayoutEffect(() => {
     paneRef.current?.scrollTo(0, 0)
+    // Navigation resets scroll even though scrolling does not read the path.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [pane.path])
   useLayoutEffect(() => {
     onRegisterListingRefresh(pane.id, pane.path, refresh)
@@ -42,11 +48,11 @@ export function useFileBrowserPane({ pane, isFrozen, isNavigationOnly, onChangeP
   }
 
   function handleHistoryButton(event: MouseEvent<HTMLElement>) {
-    if (event.button !== 3 && event.button !== 4) return
+    if (event.button !== BACK_MOUSE_BUTTON && event.button !== FORWARD_MOUSE_BUTTON) return
     event.preventDefault()
     event.stopPropagation()
     if (isFrozen || event.type !== 'mouseup') return
-    const direction = event.button === 3 ? -1 : 1
+    const direction = event.button === BACK_MOUSE_BUTTON ? -1 : 1
     onChangePane((currentPane) => traversePaneHistory(currentPane, direction))
   }
 

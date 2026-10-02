@@ -16,4 +16,6 @@ import { TransfersController } from './Presentation/transfers.controller.js'
   ],
   exports: [TransferCoordination]
 })
+// Nest requires a decorated module class for runtime metadata.
+// oxlint-disable-next-line typescript/no-extraneous-class
 export class TransferCoordinationModule {}

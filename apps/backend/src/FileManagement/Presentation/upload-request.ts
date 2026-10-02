@@ -24,5 +24,6 @@ export interface UploadManifestBody {
 }
 
 export function readUploadManifest(request: UploadRequest): unknown {
-  return (request.body as UploadManifestBody | undefined)?.manifest
+  const body: UploadManifestBody | undefined = request.body
+  return body?.manifest
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import type { UploadConflictPolicy } from '@raft/shared'
-import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { UploadDialogProps } from './upload-dialog'
 import { createUploadRequest, ensureUploadSucceeded } from '../transfers/transfer-requests'
 
@@ -56,6 +56,8 @@ export function useUploadRequest({
         if (mounted.current) setIsSubmitting(false)
       }
     },
+    // mounted is read after awaiting the upload to avoid updates after unmount.
+    // oxlint-disable-next-line react/memo-dependencies
     [directory, onRequestFinished, onRequestStarted, selection, dialogRef, mounted, onError]
   )
 

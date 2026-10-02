@@ -37,7 +37,7 @@ export async function validateIncomingNames(stagingPath: string, items: UploadMa
           parentPath = join(parentPath, component)
         }
         try {
-          const handle = await open(join(parentPath, components.at(-1) as string), 'wx')
+          const handle = await open(join(parentPath, components[components.length - 1]), 'wx')
           await handle.close()
         } catch (error) {
           if (isExists(error)) throw new Failure('invalid_request', 'Selected files have names that collide on this filesystem.')
@@ -94,7 +94,7 @@ export async function promotePreparedReplacement(
   } catch (error) {
     if (backupPath) {
       try {
-        if (await pathExists(target.path)) throw new Error('The destination path is occupied.')
+        if (await pathExists(target.path)) throw new Error('The destination path is occupied.', { cause: error })
         await rename(backupPath, target.path)
       } catch (restoreError) {
         throw withFilesystemFailure(
@@ -107,12 +107,13 @@ export async function promotePreparedReplacement(
     throw toFilesystemFailure(error)
   }
 
-  if (!backupPath) return
+  if (!backupPath) return undefined
   try {
     await rm(backupPath, { recursive: true })
   } catch (error) {
     return withFilesystemFailure(error, 'The replacement completed, but its backup could not be removed. Check for recovery data in the destination.')
   }
+  return undefined
 }
 
 export async function unusedInternalPath(parentPath: string, kind: 'tmp' | 'old', operationId: string, counter: number): Promise<string> {

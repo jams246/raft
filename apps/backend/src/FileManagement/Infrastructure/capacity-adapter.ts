@@ -4,6 +4,8 @@ import { Failure } from '../../shared/failures.js'
 import type { CapacityPort } from '../Application/ports.js'
 import { withFilesystemFailure } from './filesystem-failures.js'
 
+const MAX_RESERVE_VALUE_LENGTH = 128
+
 const DEFAULT_RESERVE_BYTES = 1024n ** 3n
 const MAX_SAFE_BYTES = BigInt(Number.MAX_SAFE_INTEGER)
 const UNIT_BYTES: Record<string, bigint> = {
@@ -53,14 +55,14 @@ export class CapacityAdapter implements CapacityPort {
 
 export function parseMinimumFreeSpace(value: string): bigint | undefined {
   const text = value.trim()
-  if (!text || text.length > 128) return
+  if (!text || text.length > MAX_RESERVE_VALUE_LENGTH) return undefined
   const match = /^(?:(\d+)(?:\.(\d+))?|\.(\d+))\s*(B|KB|MB|GB|TB|KIB|MIB|GIB|TIB)?$/i.exec(text)
-  if (!match) return
+  if (!match) return undefined
   const whole = BigInt(match[1] ?? '0')
   const fraction = match[2] ?? match[3] ?? ''
   const denominator = 10n ** BigInt(fraction.length)
   const numerator = (whole * denominator + BigInt(fraction || '0')) * UNIT_BYTES[(match[4] ?? 'B').toUpperCase()]
-  if (numerator % denominator !== 0n) return
+  if (numerator % denominator !== 0n) return undefined
   const bytes = numerator / denominator
   return bytes <= MAX_SAFE_BYTES ? bytes : undefined
 }

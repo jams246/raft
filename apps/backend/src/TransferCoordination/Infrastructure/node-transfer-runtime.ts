@@ -24,7 +24,11 @@ export class NodeTransferRuntime implements TransferRuntimePort {
   }
 
   cancelSchedule(handle: unknown): void {
-    clearTimeout(handle as ReturnType<typeof setTimeout>)
+    if (typeof handle === 'number' || typeof handle === 'string') {
+      clearTimeout(handle)
+      return
+    }
+    if (typeof handle === 'object' && handle !== null && Symbol.toPrimitive in handle) clearTimeout(Number(handle))
   }
 
   publish(event: TransferEvent): void {

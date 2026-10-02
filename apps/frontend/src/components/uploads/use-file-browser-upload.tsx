@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useRef, useState, type ChangeEvent } from 'react'
-import { createUploadSelection, type UploadSelection } from './file-browser-upload'
+import { type ChangeEvent, useCallback, useRef, useState } from 'react'
+import { type UploadSelection, createUploadSelection } from './file-browser-upload'
 import { UploadDialog } from './upload-dialog'
 
 interface FileBrowserUploadOptions {

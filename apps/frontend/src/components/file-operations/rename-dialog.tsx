@@ -1,7 +1,7 @@
 'use client'
 
 import type { FileEntry } from '@raft/shared'
-import { useEffect, useRef, useState, type SubmitEvent } from 'react'
+import { type SubmitEvent, useEffect, useRef, useState } from 'react'
 
 interface RenameDialogProps {
   item: FileEntry
@@ -37,7 +37,7 @@ export function RenameDialog({ item, isLocked, onClose, onSuccess }: RenameDialo
         body: JSON.stringify({ path: item.path, name })
       })
       if (!response.ok) {
-        const result = (await response.json().catch(() => undefined)) as { message?: string } | undefined
+        const result: { message?: string } | undefined = await response.json().catch(() => undefined)
         throw new Error(result?.message ?? 'Unable to rename item.')
       }
       onSuccess()
@@ -62,7 +62,12 @@ export function RenameDialog({ item, isLocked, onClose, onSuccess }: RenameDialo
       <h2 className="rename-dialog__title" id="rename-title">
         Rename
       </h2>
-      <form className="rename-dialog__form" onSubmit={(event) => void renameItem(event)}>
+      <form
+        className="rename-dialog__form"
+        onSubmit={(event) => {
+          void renameItem(event)
+        }}
+      >
         <label htmlFor="rename-name">Name</label>
         <input
           autoFocus

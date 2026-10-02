@@ -44,12 +44,16 @@ export function useCopyPreflight({
         preflightController.current = undefined
       }
     }
+    // hasRequestStarted is read in finally to keep submission state current.
+    // oxlint-disable-next-line react/memo-dependencies
   }, [kind, destinationPath, sourcePaths, onStartTransfer, canStartTransfer, hasRequestStarted])
 
   useEffect(() => {
     let startCheckTimer: number | undefined
     if (!chooseDestination) {
-      startCheckTimer = window.setTimeout(() => void checkConflicts(), 0)
+      startCheckTimer = window.setTimeout(() => {
+        void checkConflicts()
+      }, 0)
     }
     return () => {
       if (startCheckTimer !== undefined) window.clearTimeout(startCheckTimer)

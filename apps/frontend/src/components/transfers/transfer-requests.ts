@@ -1,5 +1,5 @@
 import type { ConflictPolicy, CopyConflict, UploadConflict } from '@raft/shared'
-import { createUploadFormData, type UploadSelection } from '../uploads/file-browser-upload'
+import { type UploadSelection, createUploadFormData } from '../uploads/file-browser-upload'
 
 export async function startCopyTransfer(
   kind: 'copy' | 'move',
@@ -25,7 +25,7 @@ export async function checkCopyConflicts(kind: 'copy' | 'move', sourcePaths: str
     signal
   })
   if (!response.ok) throw new Error(await getResponseMessage(response, `Unable to check ${kind} conflicts.`))
-  const result = (await response.json()) as { conflicts: CopyConflict[] }
+  const result: { conflicts: CopyConflict[] } = await response.json()
   return result.conflicts
 }
 
@@ -53,11 +53,11 @@ export async function checkUploadConflicts(directory: string, selection: UploadS
     signal
   })
   if (!response.ok) throw new Error(await getResponseMessage(response, 'Unable to check upload names.'))
-  const result = (await response.json()) as { conflicts: UploadConflict[] }
+  const result: { conflicts: UploadConflict[] } = await response.json()
   return result.conflicts
 }
 
 async function getResponseMessage(response: Response, fallback: string): Promise<string> {
-  const error = (await response.json().catch(() => undefined)) as { message?: string } | undefined
+  const error: { message?: string } | undefined = await response.json().catch(() => undefined)
   return error?.message ?? fallback
 }

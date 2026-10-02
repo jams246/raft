@@ -22,7 +22,7 @@ export class FileManagement {
       path: listing.path,
       entries: listing.entries
         .map((entry) => (isProtectedRootDirectory(listing.path, entry.type) ? { ...entry, protectedRoot: true } : entry))
-        .sort((left, right) => left.name.localeCompare(right.name))
+        .toSorted((left, right) => left.name.localeCompare(right.name))
     }
   }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type SubmitEvent } from 'react'
+import { type SubmitEvent, useEffect, useRef, useState } from 'react'
 
 interface NewFolderDialogProps {
   parentPath: string
@@ -31,7 +31,7 @@ export function NewFolderDialog({ parentPath, isLocked, onClose }: NewFolderDial
         body: JSON.stringify({ parent: parentPath, name })
       })
       if (!response.ok) {
-        const result = (await response.json().catch(() => undefined)) as { message?: string } | undefined
+        const result: { message?: string } | undefined = await response.json().catch(() => undefined)
         throw new Error(result?.message ?? 'Unable to create folder.')
       }
       dialogRef.current?.close()
@@ -55,7 +55,12 @@ export function NewFolderDialog({ parentPath, isLocked, onClose }: NewFolderDial
       <h2 className="new-folder-dialog__title" id="new-folder-title">
         New Folder
       </h2>
-      <form className="new-folder-dialog__form" onSubmit={(event) => void createFolder(event)}>
+      <form
+        className="new-folder-dialog__form"
+        onSubmit={(event) => {
+          void createFolder(event)
+        }}
+      >
         <label htmlFor="new-folder-name">Folder name</label>
         <input
           autoFocus

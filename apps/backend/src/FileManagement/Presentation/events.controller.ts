@@ -1,4 +1,4 @@
-import { Controller, Query, Sse, SseSignal, type MessageEvent } from '@nestjs/common'
+import { Controller, type MessageEvent, Query, Sse, SseSignal } from '@nestjs/common'
 import { EMPTY, Observable } from 'rxjs'
 import type { TransferEvent as ApiTransferEvent, TransferState as ApiTransferState } from '@raft/shared'
 import { Failure, toFailure } from '../../shared/failures.js'
@@ -22,7 +22,7 @@ export class EventsController {
     if (signal.aborted) return EMPTY
     return new Observable((subscriber) => {
       if (signal.aborted) return subscriber.complete()
-      let unsubscribe: () => void = () => {}
+      let unsubscribe: (() => void) | undefined
       try {
         unsubscribe = this.directoryEvents.subscribe(
           directories,
@@ -32,7 +32,7 @@ export class EventsController {
       } catch (error) {
         subscriber.error(toPresentationFailure(error) ?? toFailure(error))
       }
-      return () => unsubscribe()
+      return () => unsubscribe?.()
     })
   }
 }

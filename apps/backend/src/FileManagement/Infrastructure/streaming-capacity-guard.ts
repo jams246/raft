@@ -43,6 +43,8 @@ export class StreamingCapacityGuard {
     return {
       transform: new Transform({
         transform(chunk: Buffer | string, encoding, callback) {
+          const complete = () => callback()
+          const fail = (error: unknown) => callback(asError(error))
           const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding)
           void (async () => {
             for (let offset = 0; offset < data.byteLength; offset += MAX_TRANSFORM_CHUNK_BYTES) {
@@ -52,8 +54,8 @@ export class StreamingCapacityGuard {
               this.push(segment)
             }
           })()
-            .then(() => callback())
-            .catch((error: unknown) => callback(asError(error)))
+            .then(complete)
+            .catch(fail)
         }
       }),
       dispose: () => {

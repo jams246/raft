@@ -61,51 +61,55 @@ export class CopyMoveUseCases {
         }
         this.transfers.progress(operation.id, { phase: 'transferring', bytesTotal: plan.bytesTotal })
 
-        let completedItems = 0
-        let bytesProcessed = 0
-        let bytesTotal = plan.bytesTotal
-        try {
-          for (const [index, item] of plan.items.entries()) {
-            operation.signal.throwIfAborted()
-            this.transfers.progress(operation.id, { phase: 'transferring', currentName: basename(item.source.virtualPath) })
-            const result = await this.filesystem[kind === 'copy' ? 'copyItem' : 'moveItem'](
-              item,
-              operation.id,
-              index,
-              operation.signal,
-              (itemBytes) => this.transfers.progress(operation.id, { bytesProcessed: bytesProcessed + itemBytes }),
-              () => {
-                bytesTotal = null
-                this.transfers.progress(operation.id, { bytesTotal: null })
-              },
-              () => this.transfers.progress(operation.id, { phase: 'transferring' }),
-              () => this.transfers.progress(operation.id, { phase: 'finalizing' })
-            )
-            if (!result.matchesPreparedSize || result.bytesTotal === null) {
-              bytesTotal = null
-              this.transfers.progress(operation.id, { bytesTotal: null })
-            }
-            bytesProcessed += result.bytesWritten
-            completedItems += 1
-            this.transfers.progress(operation.id, {
-              current: completedItems,
-              currentName: basename(item.source.virtualPath),
-              bytesProcessed,
-              bytesTotal
-            })
-            if (result.cleanupFailure) throw result.cleanupFailure
-          }
-          operation.signal.throwIfAborted()
-        } catch (error) {
-          if (completedItems > 0) throw withFailure(toFailure(error), `The ${kind} stopped after ${completedItems} of ${plan.items.length} items.`)
-          throw error
-        }
+        await this.executePlan(kind, plan, operation.id, operation.signal)
       })
       this.transfers.complete(operation.id)
     } catch (error) {
       const failure = toFailure(error)
       this.transfers.fail(operation.id, failure)
       throw failure
+    }
+  }
+
+  private async executePlan(kind: 'copy' | 'move', plan: CopyMovePlan, operationId: string, signal: AbortSignal): Promise<void> {
+    let completedItems = 0
+    let bytesProcessed = 0
+    let bytesTotal = plan.bytesTotal
+    try {
+      for (const [index, item] of plan.items.entries()) {
+        signal.throwIfAborted()
+        this.transfers.progress(operationId, { phase: 'transferring', currentName: basename(item.source.virtualPath) })
+        const result = await this.filesystem[kind === 'copy' ? 'copyItem' : 'moveItem'](
+          item,
+          operationId,
+          index,
+          signal,
+          (itemBytes) => this.transfers.progress(operationId, { bytesProcessed: bytesProcessed + itemBytes }),
+          () => {
+            bytesTotal = null
+            this.transfers.progress(operationId, { bytesTotal: null })
+          },
+          () => this.transfers.progress(operationId, { phase: 'transferring' }),
+          () => this.transfers.progress(operationId, { phase: 'finalizing' })
+        )
+        if (!result.matchesPreparedSize || result.bytesTotal === null) {
+          bytesTotal = null
+          this.transfers.progress(operationId, { bytesTotal: null })
+        }
+        bytesProcessed += result.bytesWritten
+        completedItems += 1
+        this.transfers.progress(operationId, {
+          current: completedItems,
+          currentName: basename(item.source.virtualPath),
+          bytesProcessed,
+          bytesTotal
+        })
+        if (result.cleanupFailure) throw result.cleanupFailure
+      }
+      signal.throwIfAborted()
+    } catch (error) {
+      if (completedItems > 0) throw withFailure(toFailure(error), `The ${kind} stopped after ${completedItems} of ${plan.items.length} items.`)
+      throw error
     }
   }
 

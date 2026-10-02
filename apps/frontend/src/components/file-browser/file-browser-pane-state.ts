@@ -1,5 +1,5 @@
 import type { FileEntry } from '@raft/shared'
-import { getSelectableRangePaths, type SortColumn, type SortDirection } from './file-browser-list'
+import { type SortColumn, type SortDirection, getSelectableRangePaths } from './file-browser-list'
 
 export interface FileBrowserPaneState {
   id: number

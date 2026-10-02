@@ -1,7 +1,7 @@
-import { ArgumentsHost, Catch, HttpException, type ExceptionFilter } from '@nestjs/common'
+import { ArgumentsHost, Catch, type ExceptionFilter, HttpException } from '@nestjs/common'
 import type { ApiError, ApiErrorCode } from '@raft/shared'
 import type { Response } from 'express'
-import { Failure, toFailure, type FailureKind } from './failures.js'
+import { Failure, type FailureKind, toFailure } from './failures.js'
 
 const failureResponses: Record<FailureKind, { code: ApiErrorCode; status: number }> = {
   invalid_path: { code: 'invalid_path', status: 400 },
@@ -42,7 +42,7 @@ export class ApiFailureFilter implements ExceptionFilter {
 }
 
 function toHttpFailureResponse(exception: unknown): { status: number; body: ApiError } | undefined {
-  if (!(exception instanceof HttpException)) return
+  if (!(exception instanceof HttpException)) return undefined
   const status = exception.getStatus()
   const response = exception.getResponse()
   if (typeof response === 'object' && response !== null && 'error' in response && isApiErrorCode(response.error)) {
@@ -62,7 +62,7 @@ export function toApiErrorCode(failure: Failure): ApiErrorCode {
 }
 
 export function toPresentationFailure(exception: unknown): Failure | undefined {
-  if (!(exception instanceof HttpException)) return
+  if (!(exception instanceof HttpException)) return undefined
   const status = exception.getStatus()
   const response = exception.getResponse()
   if (typeof response === 'object' && response !== null && 'error' in response && isApiErrorCode(response.error)) {
@@ -74,13 +74,13 @@ export function toPresentationFailure(exception: unknown): Failure | undefined {
 
 function statusFailure(status: number, message: string): Failure {
   switch (status) {
-    case 400:
+    case failureResponses.invalid_request.status:
       return new Failure('invalid_request', message)
-    case 403:
+    case failureResponses.permission_denied.status:
       return new Failure('permission_denied', message)
-    case 404:
+    case failureResponses.not_found.status:
       return new Failure('not_found', message)
-    case 507:
+    case failureResponses.insufficient_storage.status:
       return new Failure('insufficient_storage', message)
     default:
       return new Failure('operation_failed', 'The operation failed.')
@@ -111,6 +111,6 @@ function isApiErrorCode(value: unknown): value is ApiErrorCode {
 }
 
 function failureKind(code: ApiErrorCode, status: number): FailureKind {
-  if (code === 'operation_failed' && status === 409) return 'source_changed'
+  if (code === 'operation_failed' && status === failureResponses.conflict.status) return 'source_changed'
   return code
 }

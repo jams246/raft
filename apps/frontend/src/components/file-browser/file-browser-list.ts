@@ -1,5 +1,7 @@
 import type { FileEntry } from '@raft/shared'
 
+const BYTES_PER_UNIT = 1024
+
 export type SortColumn = 'name' | 'size'
 export type SortDirection = 'asc' | 'desc'
 
@@ -10,8 +12,8 @@ export function formatFileSize(size: number): string {
   let value = size
   let unitIndex = 0
 
-  while (value >= 1024 && unitIndex < sizeUnits.length - 1) {
-    value /= 1024
+  while (value >= BYTES_PER_UNIT && unitIndex < sizeUnits.length - 1) {
+    value /= BYTES_PER_UNIT
     unitIndex += 1
   }
 

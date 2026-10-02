@@ -1,8 +1,8 @@
 import { AnyFilesInterceptor } from '@nestjs/platform-express'
-import { Injectable, type CallHandler, type ExecutionContext, type NestInterceptor } from '@nestjs/common'
+import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor } from '@nestjs/common'
 import type { Readable } from 'node:stream'
 import { basename } from 'node:path'
-import { catchError, from, mergeMap, race, throwError, type Observable } from 'rxjs'
+import { type Observable, catchError, from, mergeMap, race, throwError } from 'rxjs'
 import { Failure, toFailure } from '../../shared/failures.js'
 import { toPresentationFailure } from '../../shared/api-failure.filter.js'
 import { UploadManagement } from '../Application/upload-management.js'
@@ -83,13 +83,12 @@ export class UploadInterceptor implements NestInterceptor {
         track(upload.pendingWrites, write)
       },
       _removeFile: (_request, file, callback) => {
-        const removal = this.uploads.removePart(upload.sessionId, file.path).then(
-          () => callback(null),
-          (error: unknown) => {
-            upload.cleanupFailures.push(error)
-            callback(asError(error))
-          }
-        )
+        const onRemoved = () => callback(null)
+        const onRemovalFailed = (error: unknown) => {
+          upload.cleanupFailures.push(error)
+          callback(asError(error))
+        }
+        const removal = this.uploads.removePart(upload.sessionId, file.path).then(onRemoved, onRemovalFailed)
         track(upload.pendingWrites, removal)
       }
     }
@@ -104,7 +103,7 @@ export class UploadInterceptor implements NestInterceptor {
     for (const stream of upload.activeStreams) {
       if (!stream.destroyed) stream.destroy()
     }
-    while (upload.pendingWrites.size > 0) await Promise.allSettled([...upload.pendingWrites])
+    while (upload.pendingWrites.size > 0) await Promise.allSettled(upload.pendingWrites)
     const primaryFailure = toPresentationFailure(upload.failure) ?? toFailure(upload.failure)
     const cleanupFailures = upload.cleanupFailures.map((cleanupError) => toPresentationFailure(cleanupError) ?? toFailure(cleanupError))
     return this.uploads.fail(upload.sessionId, primaryFailure, cleanupFailures)

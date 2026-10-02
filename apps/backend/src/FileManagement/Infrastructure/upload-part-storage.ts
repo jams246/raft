@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { createWriteStream, type WriteStream } from 'node:fs'
+import { type WriteStream, createWriteStream } from 'node:fs'
 import { unlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { Readable } from 'node:stream'
@@ -9,6 +9,8 @@ import type { CapacityPort } from '../Application/ports.js'
 import type { StoredUploadPart } from '../Application/ports.js'
 import { isMissing, toFilesystemFailure, withFilesystemFailure } from './filesystem-failures.js'
 import { StreamingCapacityGuard } from './streaming-capacity-guard.js'
+
+const PROGRESS_INTERVAL_MS = 100
 
 export class UploadPartStorage {
   private readonly capacities = new Map<string, { bytesTotal: number; guard: StreamingCapacityGuard }>()
@@ -23,8 +25,7 @@ export class UploadPartStorage {
     report: (bytes: number) => void
   ): Promise<StoredUploadPart> {
     const capacity = this.getCapacity(stagingPath, bytesTotal)
-    const filename = randomUUID()
-    const path = join(stagingPath, filename)
+    const path = join(stagingPath, randomUUID())
     let output: WriteStream | undefined
     let transform: ReturnType<StreamingCapacityGuard['createTransform']> | undefined
     let timer: ReturnType<typeof setInterval> | undefined
@@ -35,7 +36,7 @@ export class UploadPartStorage {
         () => BigInt(bytesTotal) - capacity.streamedBytes,
         () => output!.bytesWritten
       )
-      timer = setInterval(() => report(output?.bytesWritten ?? 0), 100)
+      timer = setInterval(() => report(output?.bytesWritten ?? 0), PROGRESS_INTERVAL_MS)
       await pipeline(file.stream, transform.transform, output, { signal })
       return { fieldname: file.fieldname, path, size: output.bytesWritten }
     } catch (error) {

@@ -3,8 +3,8 @@ import { assertCanUpload } from '../Domain/path-policy.js'
 import { parseUploadManifest } from '../Domain/upload-policy.js'
 import type {
   ConflictPolicy,
-  MutationSerializationPort,
   MultipartFile,
+  MutationSerializationPort,
   StoredUploadPart,
   TransferCoordinationPort,
   UploadSession,
@@ -70,10 +70,10 @@ export class UploadManagement {
     if (!state.session.stagingPath) throw new Failure('operation_busy', 'The upload is not ready to receive files.')
     const partId = state.nextPartId++
     state.activeBytes.set(partId, 0)
-    const report = (currentName: string) =>
+    const report = (name: string) =>
       this.transfers.progress(id, {
         phase: 'transferring',
-        currentName,
+        currentName: name,
         bytesProcessed: state.bytesProcessed + [...state.activeBytes.values()].reduce((sum, bytes) => sum + bytes, 0),
         bytesTotal: state.session.bytesTotal
       })

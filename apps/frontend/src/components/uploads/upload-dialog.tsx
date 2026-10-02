@@ -57,6 +57,8 @@ export function UploadDialog({ directory, selection, isOperationLocked, onClose,
       mounted.current = false
       abortController.abort()
     }
+    // checkRevision retries preflight after a failed check.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [checkRevision, directory, selection, sendUpload])
 
   return (
@@ -80,7 +82,13 @@ export function UploadDialog({ directory, selection, isOperationLocked, onClose,
           Cancel
         </button>
         {conflicts ? (
-          <button disabled={isSubmitting || isOperationLocked || !canRetryCheck} onClick={() => void sendUpload(policy)} type="button">
+          <button
+            disabled={isSubmitting || isOperationLocked || !canRetryCheck}
+            onClick={() => {
+              void sendUpload(policy)
+            }}
+            type="button"
+          >
             {isSubmitting ? 'Uploading…' : 'Upload'}
           </button>
         ) : null}

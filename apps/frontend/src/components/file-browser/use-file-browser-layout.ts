@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createFileBrowserPaneState, type FileBrowserPaneState } from './file-browser-pane-state'
+import { type FileBrowserPaneState, createFileBrowserPaneState } from './file-browser-pane-state'
 
 export function resetMissingPane(pane: FileBrowserPaneState, path: string): FileBrowserPaneState {
   if (pane.path !== path) return pane

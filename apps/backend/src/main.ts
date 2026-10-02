@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { AppModule } from './app.module.js'
 import { ApiFailureFilter } from './shared/api-failure.filter.js'
 
+const DEFAULT_PORT = 3000
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
   app.setGlobalPrefix('api')
@@ -16,7 +18,7 @@ async function bootstrap(): Promise<void> {
     app.useStaticAssets(exportDirectory)
   }
 
-  const port = Number(process.env.PORT ?? 3000)
+  const port = Number(process.env.PORT ?? DEFAULT_PORT)
   await app.listen(port, '0.0.0.0')
 }
 

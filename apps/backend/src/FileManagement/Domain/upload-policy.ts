@@ -24,24 +24,24 @@ export function parseUploadManifest(value: unknown, total: number, partCount?: n
 
   const names = new Set<string>()
   const parts = new Set<number>()
-  const items = parsed.items.map((value): UploadManifestItem => {
-    if (!isRecord(value) || typeof value.name !== 'string' || (value.type !== 'file' && value.type !== 'directory') || !Array.isArray(value.files)) {
+  const items = parsed.items.map((item): UploadManifestItem => {
+    if (!isRecord(item) || typeof item.name !== 'string' || (item.type !== 'file' && item.type !== 'directory') || !Array.isArray(item.files)) {
       throw invalidUpload()
     }
-    validateUploadName(value.name)
-    if (names.has(value.name)) throw new Failure('invalid_request', 'Selected items must have unique names.')
-    names.add(value.name)
-    if (value.files.length === 0 || (value.type === 'file' && value.files.length !== 1)) throw invalidUpload()
+    validateUploadName(item.name)
+    if (names.has(item.name)) throw new Failure('invalid_request', 'Selected items must have unique names.')
+    names.add(item.name)
+    if (item.files.length === 0 || (item.type === 'file' && item.files.length !== 1)) throw invalidUpload()
 
-    const files = value.files.map((file) => {
-      if (!isRecord(file) || !Number.isSafeInteger(file.part) || typeof file.path !== 'string') throw invalidUpload()
-      if ((value.type === 'file' && file.path !== '') || (value.type === 'directory' && !isSafeRelativePath(file.path))) throw invalidUpload()
-      if (parts.has(file.part as number)) throw invalidUpload()
-      parts.add(file.part as number)
-      return { part: file.part as number, path: file.path }
+    const files = item.files.map((file) => {
+      if (!isRecord(file) || typeof file.part !== 'number' || !Number.isSafeInteger(file.part) || typeof file.path !== 'string') throw invalidUpload()
+      if ((item.type === 'file' && file.path !== '') || (item.type === 'directory' && !isSafeRelativePath(file.path))) throw invalidUpload()
+      if (parts.has(file.part)) throw invalidUpload()
+      parts.add(file.part)
+      return { part: file.part, path: file.path }
     })
-    if (value.type === 'directory' && new Set(files.map((file) => file.path)).size !== files.length) throw invalidUpload()
-    return { name: value.name, type: value.type, files }
+    if (item.type === 'directory' && new Set(files.map((file) => file.path)).size !== files.length) throw invalidUpload()
+    return { name: item.name, type: item.type, files }
   })
 
   if (parts.size !== (partCount ?? parts.size) || [...parts].some((part) => part < 0 || part >= parts.size)) throw invalidUpload()

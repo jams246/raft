@@ -34,7 +34,7 @@ export class DirectoryEvents {
     }
     listener({ type: 'operation_state', operation: this.transfers.getSnapshot() })
     return () => {
-      for (const cleanup of cleanups.reverse()) cleanup()
+      for (const cleanup of cleanups.toReversed()) cleanup()
     }
   }
 }

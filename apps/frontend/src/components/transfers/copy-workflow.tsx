@@ -86,7 +86,13 @@ export function CopyWorkflow({
           </button>
         ) : null}
         {errorMessage ? (
-          <button disabled={isChecking || isOperationLocked} onClick={() => void checkConflicts()} type="button">
+          <button
+            disabled={isChecking || isOperationLocked}
+            onClick={() => {
+              void checkConflicts()
+            }}
+            type="button"
+          >
             Try checking again
           </button>
         ) : null}

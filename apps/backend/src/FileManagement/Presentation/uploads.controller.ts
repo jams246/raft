@@ -38,7 +38,7 @@ export class UploadsController {
     if (!upload) throw invalidUpload()
     const policy = request.query.policy
     if (policy !== 'rename' && policy !== 'overwrite') throw invalidUpload()
-    while (upload.pendingWrites.size > 0) await Promise.allSettled([...upload.pendingWrites])
+    while (upload.pendingWrites.size > 0) await Promise.allSettled(upload.pendingWrites)
     await this.uploads.finish(upload.sessionId, readUploadManifest(request), files ?? [], policy)
     upload.cleanupListeners()
   }

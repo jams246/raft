@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+const NOT_FOUND_STATUS = 404
+
 export function CancelTransferButton({ operationId, kind, isConnected }: { operationId: string; kind: 'upload' | 'copy'; isConnected: boolean }) {
   const [isCancelling, setIsCancelling] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -11,7 +13,7 @@ export function CancelTransferButton({ operationId, kind, isConnected }: { opera
     setErrorMessage('')
     try {
       const response = await fetch(`/api/${kind}/${encodeURIComponent(operationId)}/cancel`, { method: 'POST' })
-      if (!response.ok && response.status !== 404) {
+      if (!response.ok && response.status !== NOT_FOUND_STATUS) {
         throw new Error(`Unable to cancel ${kind}. Try again.`)
       }
     } catch {
@@ -22,7 +24,13 @@ export function CancelTransferButton({ operationId, kind, isConnected }: { opera
 
   return (
     <>
-      <button disabled={!isConnected || isCancelling} onClick={() => void cancelTransfer()} type="button">
+      <button
+        disabled={!isConnected || isCancelling}
+        onClick={() => {
+          void cancelTransfer()
+        }}
+        type="button"
+      >
         {isCancelling ? 'Cancelling…' : `Cancel ${kind}`}
       </button>
       {errorMessage ? <p role="alert">{errorMessage}</p> : null}

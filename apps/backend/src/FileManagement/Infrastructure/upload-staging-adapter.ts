@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { Failure } from '../../shared/failures.js'
-import type { UploadStagingPort, ConflictPolicy, MultipartFile, StoredUploadPart } from '../Application/ports.js'
+import type { ConflictPolicy, MultipartFile, StoredUploadPart, UploadStagingPort } from '../Application/ports.js'
 import type { ResolvedPath, UploadConflict } from '../Domain/models.js'
 import type { UploadManifest } from '../Domain/upload-policy.js'
 import { PathResolver } from './path-resolver.js'
@@ -83,12 +83,7 @@ export class UploadStagingAdapter implements UploadStagingPort {
     let failed = false
     let failure: unknown
     try {
-      for (const [index, incomingPath] of incomingPaths.entries()) {
-        signal.throwIfAborted()
-        const preparedPath = await unusedInternalPath(destination.absolutePath, 'tmp', operationId, index + 1)
-        await rename(incomingPath, preparedPath)
-        preparedPaths.push(preparedPath)
-      }
+      await stageIncomingPaths(incomingPaths, preparedPaths, destination.absolutePath, operationId, signal)
       for (const [index, target] of targets.entries()) {
         signal.throwIfAborted()
         const cleanupFailure = await promotePreparedReplacement(preparedPaths[index], target, operationId, index)
@@ -102,15 +97,7 @@ export class UploadStagingAdapter implements UploadStagingPort {
       failure = completedItems > 0 ? withFilesystemFailure(error, `The upload stopped after ${completedItems} of ${manifest.items.length} items.`) : error
     }
 
-    const cleanupResults = await Promise.allSettled(preparedPaths.map((path) => rm(path, { recursive: true, force: true })))
-    const cleanupError = cleanupResults.find((result) => result.status === 'rejected' && !isMissing(result.reason))
-    if (cleanupError?.status === 'rejected') {
-      failure = failed
-        ? withFilesystemFailure(failure, 'Temporary upload data could not be removed.', cleanupError.reason)
-        : withFilesystemFailure(cleanupError.reason, 'Temporary upload data could not be removed.')
-      failed = true
-    }
-    if (failed) throw toFilesystemFailure(failure)
+    await cleanupPreparedUploads(preparedPaths, failed, failure)
   }
 
   async cleanup(stagingPath: string): Promise<void> {
@@ -124,15 +111,7 @@ export class UploadStagingAdapter implements UploadStagingPort {
   }
 
   private async prepareIncomingObjects(stagingPath: string, manifest: UploadManifest, storedParts: StoredUploadPart[], signal: AbortSignal): Promise<string[]> {
-    const parts = new Map<number, string>()
-    for (const part of storedParts) {
-      const match = /^file(\d+)$/.exec(part.fieldname)
-      const index = match ? Number(match[1]) : -1
-      if (!Number.isSafeInteger(index) || index < 0 || index >= storedParts.length || parts.has(index) || dirname(part.path) !== stagingPath)
-        throw invalidUpload()
-      parts.set(index, part.path)
-    }
-    if (parts.size !== storedParts.length) throw invalidUpload()
+    const parts = indexStoredParts(stagingPath, storedParts)
 
     const incomingPaths: string[] = []
     for (const [itemIndex, item] of manifest.items.entries()) {
@@ -180,4 +159,45 @@ export class UploadStagingAdapter implements UploadStagingPort {
 
 function invalidUpload(): Failure {
   return new Failure('invalid_request', 'The upload request is invalid.')
+}
+
+function indexStoredParts(stagingPath: string, storedParts: StoredUploadPart[]): Map<number, string> {
+  const parts = new Map<number, string>()
+  for (const part of storedParts) {
+    const match = /^file(\d+)$/.exec(part.fieldname)
+    const index = match ? Number(match[1]) : -1
+    if (!Number.isSafeInteger(index) || index < 0 || index >= storedParts.length || parts.has(index) || dirname(part.path) !== stagingPath)
+      throw invalidUpload()
+    parts.set(index, part.path)
+  }
+  if (parts.size !== storedParts.length) throw invalidUpload()
+
+  return parts
+}
+
+async function cleanupPreparedUploads(preparedPaths: string[], failed: boolean, failure: unknown): Promise<void> {
+  const cleanupResults = await Promise.allSettled(preparedPaths.map((path) => rm(path, { recursive: true, force: true })))
+  const cleanupError = cleanupResults.find((result) => result.status === 'rejected' && !isMissing(result.reason))
+  if (cleanupError?.status === 'rejected') {
+    failure = failed
+      ? withFilesystemFailure(failure, 'Temporary upload data could not be removed.', cleanupError.reason)
+      : withFilesystemFailure(cleanupError.reason, 'Temporary upload data could not be removed.')
+    failed = true
+  }
+  if (failed) throw toFilesystemFailure(failure)
+}
+
+async function stageIncomingPaths(
+  incomingPaths: string[],
+  preparedPaths: string[],
+  destinationPath: string,
+  operationId: string,
+  signal: AbortSignal
+): Promise<void> {
+  for (const [index, incomingPath] of incomingPaths.entries()) {
+    signal.throwIfAborted()
+    const preparedPath = await unusedInternalPath(destinationPath, 'tmp', operationId, index + 1)
+    await rename(incomingPath, preparedPath)
+    preparedPaths.push(preparedPath)
+  }
 }

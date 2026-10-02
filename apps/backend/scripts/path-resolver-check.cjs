@@ -3,6 +3,8 @@ const { lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } 
 const { basename, join } = require('node:path')
 const { DATA_ROOT, resolveVirtualPath, validateVirtualPath } = require('../dist/FileManagement/Infrastructure/path-resolver.js')
 
+const INVALID_NUMERIC_PATH = 42
+
 async function checkPathResolver() {
   mkdirSync(DATA_ROOT, { recursive: true })
   const fixtureRoot = mkdtempSync(join(DATA_ROOT, '.foundation-check-'))
@@ -21,7 +23,7 @@ async function checkPathResolver() {
     for (const invalidPath of [
       null,
       undefined,
-      42,
+      INVALID_NUMERIC_PATH,
       'missing-leading-slash',
       `/${fixtureName}/./directory`,
       `/${fixtureName}/../directory`,

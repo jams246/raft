@@ -2,6 +2,8 @@ import type { TransferState } from '@raft/shared'
 import { CancelTransferButton } from './cancel-transfer-button'
 import { formatFileSize } from '../file-browser/file-browser-list'
 
+const PERCENTAGE_TOTAL = 100
+
 interface OperationStatusProps {
   operation: TransferState | null
   isConnected: boolean
@@ -13,7 +15,9 @@ interface OperationStatusProps {
 export function OperationStatus({ operation, isConnected, notice, uploadPending, transferPendingKind }: OperationStatusProps) {
   const transferPending = transferPendingKind !== undefined
   const percentage =
-    operation?.bytesTotal && operation.bytesTotal > 0 ? Math.min(100, Math.floor((operation.bytesProcessed / operation.bytesTotal) * 100)) : undefined
+    operation?.bytesTotal && operation.bytesTotal > 0
+      ? Math.min(PERCENTAGE_TOTAL, Math.floor((operation.bytesProcessed / operation.bytesTotal) * PERCENTAGE_TOTAL))
+      : undefined
   const byteLabel = operation ? getByteLabel(operation) : ''
   const phaseDescription = operation ? getPhaseDescription(getDisplayedPhase(operation)) : ''
   const announcement = operation ? phaseDescription : notice || getPendingDescription(uploadPending, transferPendingKind)
@@ -30,7 +34,12 @@ export function OperationStatus({ operation, isConnected, notice, uploadPending,
             <p className="operation-status__item">{getTransferDescription(operation)}</p>
             <p className="operation-status__phase">{phaseDescription}</p>
             {!isConnected ? <p className="operation-status__connection">Reconnecting…</p> : null}
-            <progress aria-label={`${getOperationLabel(operation)} progress`} className="operation-status__progress" max={100} value={percentage} />
+            <progress
+              aria-label={`${getOperationLabel(operation)} progress`}
+              className="operation-status__progress"
+              max={PERCENTAGE_TOTAL}
+              value={percentage}
+            />
             {percentage === undefined ? null : <p className="operation-status__percentage">{percentage}%</p>}
             <p className="operation-status__bytes">
               {formatFileSize(operation.bytesProcessed)} {byteLabel} of{' '}

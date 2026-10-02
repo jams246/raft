@@ -52,7 +52,7 @@ export class TransferOperation {
   }
 
   progress(update: ProgressUpdate): { state: TransferState; immediate: boolean } | undefined {
-    if (this.terminal) return
+    if (this.terminal) return undefined
     const active = this.currentState
     const current = update.current === undefined ? active.current : Math.max(active.current, normalizeCount(update.current))
     const bytesProcessed = update.bytesProcessed === undefined ? active.bytesProcessed : Math.max(active.bytesProcessed, normalizeCount(update.bytesProcessed))
@@ -68,7 +68,7 @@ export class TransferOperation {
       bytesProcessed === active.bytesProcessed &&
       bytesTotal === active.bytesTotal
     )
-      return
+      return undefined
 
     this.currentState = { ...active, current, currentName, phase, bytesProcessed, bytesTotal }
     return {

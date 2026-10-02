@@ -175,7 +175,7 @@ export class FilesystemAdapter implements FileSystemPort {
       metadata = await lstat(join(directory.absolutePath, name))
     } catch (error) {
       const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-      if (code === 'ENOENT') return
+      if (code === 'ENOENT') return undefined
       throw toFilesystemFailure(error)
     }
     let type: FileEntry['type'] = 'unsupported'

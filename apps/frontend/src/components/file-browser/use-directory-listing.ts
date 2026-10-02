@@ -39,7 +39,7 @@ export function useDirectoryListing(path: string) {
           }
           throw new Error('Listing request failed.')
         }
-        const nextListing = (await response.json()) as DirectoryListing
+        const nextListing: DirectoryListing = await response.json()
         if (!abortController.signal.aborted && currentPath.current === path) setListing(nextListing)
       } catch {
         if (!abortController.signal.aborted && currentPath.current === path) setHasError(true)
@@ -50,6 +50,8 @@ export function useDirectoryListing(path: string) {
 
     void loadDirectoryListing()
     return () => abortController.abort()
+    // retryCount triggers explicit refreshes of the same path.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [path, retryCount])
 
   return { listing, isLoading, hasError, missingPath, refresh }

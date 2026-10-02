@@ -1,16 +1,12 @@
-import { constants } from 'node:fs'
-import { chmod, lstat, mkdir, open, rm } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
-import { pipeline } from 'node:stream/promises'
-import { Failure } from '../../shared/failures.js'
-import { toFilesystemFailure, withFilesystemFailure, isMissing } from './filesystem-failures.js'
-import { StreamingCapacityGuard } from './streaming-capacity-guard.js'
+import { basename, dirname } from 'node:path'
+import type { StreamingCapacityGuard } from './streaming-capacity-guard.js'
 import { PathResolver } from './path-resolver.js'
 import type { SupportedTreeEntry } from './path-resolver.js'
 import type { ResolvedPath } from '../Domain/models.js'
 import type { CopyMoveTreeEntry } from '../Application/copy-move-models.js'
 import { promotePreparedReplacement, unusedInternalPath } from './prepared-replacement.js'
 import type { PreparedDestination } from './prepared-replacement.js'
+import { type PreparedCopyOutput, cleanupPreparedCopy, copyPreparedFiles, createPreparedDirectories, restoreDirectoryModes } from './copy-output.js'
 
 const paths = new PathResolver()
 
@@ -56,97 +52,32 @@ export async function copyPreparedItem(
 ): Promise<{ bytesWritten: number; cleanupFailure: Awaited<ReturnType<typeof promotePreparedReplacement>>; matchesPreparedSize: boolean }> {
   const sourceBytes = source.entries.reduce((total, entry) => total + (entry.isDirectory ? 0n : BigInt(entry.size)), 0n)
   await capacity.checkBeforeOutput(sourceBytes)
-  const preparedPath = await unusedInternalPath(dirname(target.path), 'tmp', operationId, index + 1)
+  const output: PreparedCopyOutput = {
+    preparedPath: await unusedInternalPath(dirname(target.path), 'tmp', operationId, index + 1),
+    sourceBytes,
+    bytesWritten: 0,
+    itemBytesAccepted: 0n,
+    ownsPreparedPath: false,
+    signal,
+    capacity,
+    reportBytes,
+    invalidateTotal
+  }
   const directories = source.entries.filter((entry) => entry.isDirectory)
-  let bytesWritten = 0
-  let itemBytesAccepted = 0n
-  let ownsPreparedPath = false
-
   try {
-    for (const entry of directories) {
-      signal.throwIfAborted()
-      const destinationPath = join(preparedPath, entry.relativePath)
-      const currentStats = await lstat(entry.absolutePath)
-      if (currentStats.isSymbolicLink() || !currentStats.isDirectory()) {
-        throw new Failure('unsupported', 'The requested path is unsupported.')
-      }
-      await mkdir(destinationPath, { mode: (entry.mode & 0o7777) | 0o700 })
-      if (!entry.relativePath) ownsPreparedPath = true
-    }
-
-    for (const entry of source.entries.filter((item) => !item.isDirectory)) {
-      signal.throwIfAborted()
-      const destinationPath = join(preparedPath, entry.relativePath)
-      const inputHandle = await open(entry.absolutePath, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | constants.O_NONBLOCK)
-      try {
-        const currentStats = await inputHandle.stat()
-        if (!currentStats.isFile()) throw new Failure('unsupported', 'The requested path is unsupported.')
-        if (currentStats.size !== entry.size) invalidateTotal()
-
-        const input = inputHandle.createReadStream({ autoClose: true })
-        const remainingBytes = () => {
-          const remaining = sourceBytes - itemBytesAccepted
-          return remaining > 0n ? remaining : 0n
-        }
-        await capacity.checkBeforeOutput(remainingBytes())
-        const outputHandle = await open(destinationPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, entry.mode & 0o7777)
-        if (!source.source.isDirectory) ownsPreparedPath = true
-        const output = outputHandle.createWriteStream({ autoClose: true })
-        const capacityTransform = capacity.createTransform(
-          remainingBytes,
-          () => output.bytesWritten,
-          (byteCount) => {
-            itemBytesAccepted += BigInt(byteCount)
-          }
-        )
-        const sample = () => reportBytes(bytesWritten + output.bytesWritten)
-        const samplingTimer = setInterval(sample, 100)
-        try {
-          await pipeline(input, capacityTransform.transform, output, { signal })
-        } finally {
-          clearInterval(samplingTimer)
-          capacityTransform.dispose()
-          bytesWritten += output.bytesWritten
-          reportBytes(bytesWritten)
-        }
-
-        const finalStats = await lstat(entry.absolutePath)
-        if (finalStats.isSymbolicLink() || !finalStats.isFile() || finalStats.size !== entry.size || output.bytesWritten !== entry.size) {
-          invalidateTotal()
-        }
-        await chmod(destinationPath, entry.mode & 0o7777)
-      } catch (error) {
-        await inputHandle.close().catch(() => undefined)
-        throw error
-      }
-    }
-
+    await createPreparedDirectories(directories, output)
+    await copyPreparedFiles(source.entries, source.source.isDirectory, output)
     signal.throwIfAborted()
     const currentEntries = (await paths.listSupportedTree(source.source, signal)).map(toCopyEntry)
     const matchesPreparedSize = hasSamePreparedSource(source.entries, currentEntries, true)
     if (!matchesPreparedSize) invalidateTotal()
     enterFinalizing()
-    for (const entry of directories.toReversed()) {
-      const destinationPath = join(preparedPath, entry.relativePath)
-      await chmod(destinationPath, entry.mode & 0o7777)
-    }
+    await restoreDirectoryModes(directories.toReversed(), output.preparedPath)
     signal.throwIfAborted()
-    const cleanupFailure = await promotePreparedReplacement(preparedPath, target, operationId, index)
-    return { bytesWritten, cleanupFailure, matchesPreparedSize }
+    const cleanupFailure = await promotePreparedReplacement(output.preparedPath, target, operationId, index)
+    return { bytesWritten: output.bytesWritten, cleanupFailure, matchesPreparedSize }
   } catch (error) {
-    let failure = error instanceof Error && error.name === 'AbortError' && signal.aborted ? signal.reason : error
-    if (ownsPreparedPath) {
-      for (const entry of directories) {
-        const destinationPath = join(preparedPath, entry.relativePath)
-        await chmod(destinationPath, (entry.mode & 0o7777) | 0o700).catch(() => undefined)
-      }
-      try {
-        await rm(preparedPath, { recursive: true, force: true })
-      } catch (cleanupError) {
-        if (!isMissing(cleanupError)) failure = withFilesystemFailure(failure, 'Temporary copy data could not be removed.', cleanupError)
-      }
-    }
-    throw toFilesystemFailure(failure)
+    throw await cleanupPreparedCopy(directories, output, error)
   }
 }
 

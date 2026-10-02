@@ -111,4 +111,6 @@ import { UploadStagingAdapter } from './Infrastructure/upload-staging-adapter.js
     }
   ]
 })
+// Nest requires a decorated module class for runtime metadata.
+// oxlint-disable-next-line typescript/no-extraneous-class
 export class FileManagementModule {}
