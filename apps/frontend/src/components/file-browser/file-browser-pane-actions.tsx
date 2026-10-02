@@ -2,13 +2,13 @@
 
 import type { FileEntry } from '@raft/shared'
 import { useState, type ReactNode } from 'react'
-import { DeleteConfirmationDialog } from './delete-confirmation-dialog'
-import { canDownloadSelection, downloadSelection } from './file-browser-download'
+import { DeleteConfirmationDialog } from '../file-operations/delete-confirmation-dialog'
+import { canDownloadSelection, downloadSelection } from '../file-operations/file-browser-download'
 import type { FileBrowserPaneState } from './file-browser-pane-state'
 import { FileBrowserToolbar } from './file-browser-toolbar'
-import { NewFolderDialog } from './new-folder-dialog'
-import { RenameDialog } from './rename-dialog'
-import { useFileBrowserUpload } from './use-file-browser-upload'
+import { NewFolderDialog } from '../file-operations/new-folder-dialog'
+import { RenameDialog } from '../file-operations/rename-dialog'
+import { useFileBrowserUpload } from '../uploads/use-file-browser-upload'
 
 interface FileBrowserPaneActionsProps {
   children: ReactNode

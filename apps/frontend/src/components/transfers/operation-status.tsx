@@ -1,6 +1,6 @@
 import type { TransferState } from '@raft/shared'
 import { CancelTransferButton } from './cancel-transfer-button'
-import { formatFileSize } from './file-browser-list'
+import { formatFileSize } from '../file-browser/file-browser-list'
 
 interface OperationStatusProps {
   operation: TransferState | null
