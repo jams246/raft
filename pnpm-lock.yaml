@@ -166,6 +166,12 @@ importers:
 
   .:
     devDependencies:
+      fta-check:
+        specifier: ^1.5.8
+        version: 1.5.8(fta-cli@3.0.1)
+      fta-cli:
+        specifier: ^3.0.1
+        version: 3.0.1
       oxfmt:
         specifier: 0.71.0
         version: 0.71.0
@@ -250,6 +256,11 @@ packages:
 
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
+
+  '@commander-js/extra-typings@14.0.0':
+    resolution: {integrity: sha512-hIn0ncNaJRLkZrxBIp5AsW/eXEHNKYQBh0aPdoUqNgD+Io3NIykQqpKFyKcuasZhicGaEZJX/JBSIkZ4e5x8Dg==}
+    peerDependencies:
+      commander: ~14.0.0
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -1075,6 +1086,10 @@ packages:
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
 
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
+
   compress-commons@7.0.1:
     resolution: {integrity: sha512-g0S8KAD8qf4+V//pr3BfB1aBnARLXNz2Gx+jmHU0LEriUuoQUOPOulVquHKTJ8+EAIIO7fhseNDr9wK5Q9FKBQ==}
     engines: {node: '>=18'}
@@ -1201,6 +1216,17 @@ packages:
   fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
     engines: {node: '>= 0.8'}
+
+  fta-check@1.5.8:
+    resolution: {integrity: sha512-IQvXSNqjE4UAIyR27jrTpi5DgxkFHip9Weq+ZuONU3BFqTsTXysapIDISkcSoEloHAU8uoHU0lZMSRDB6Lx7hg==}
+    engines: {node: '>=24.15.0'}
+    hasBin: true
+    peerDependencies:
+      fta-cli: ^3.0.0
+
+  fta-cli@3.0.1:
+    resolution: {integrity: sha512-Nm03+vurWkzWj/SEiOof+8zDAbp/0+gDttW5+gIVe4Qxg4uOTlQm+IbHyXM+QptCfywj0/h4U37NsnybaG9z6Q==}
+    hasBin: true
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
@@ -1614,6 +1640,10 @@ packages:
 snapshots:
 
   '@borewit/text-codec@0.2.2': {}
+
+  '@commander-js/extra-typings@14.0.0(commander@14.0.3)':
+    dependencies:
+      commander: 14.0.3
 
   '@emnapi/runtime@1.11.3':
     dependencies:
@@ -2169,6 +2199,8 @@ snapshots:
 
   client-only@0.0.1: {}
 
+  commander@14.0.3: {}
+
   compress-commons@7.0.1:
     dependencies:
       crc-32: 1.2.2
@@ -2304,6 +2336,14 @@ snapshots:
   forwarded@0.2.0: {}
 
   fresh@2.0.0: {}
+
+  fta-check@1.5.8(fta-cli@3.0.1):
+    dependencies:
+      '@commander-js/extra-typings': 14.0.0(commander@14.0.3)
+      commander: 14.0.3
+      fta-cli: 3.0.1
+
+  fta-cli@3.0.1: {}
 
   function-bind@1.1.2: {}
 
