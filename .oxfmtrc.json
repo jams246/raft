@@ -1,5 +1,6 @@
 {
   "ignorePatterns": [
+    ".verification/**",
     ".runtime/**",
     ".git/**",
     "AGENTS.md",

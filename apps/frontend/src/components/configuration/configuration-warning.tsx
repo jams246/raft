@@ -2,6 +2,8 @@
 
 import type { ApiHealth } from '@raft/shared'
 import { useEffect, useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 
 export function ConfigurationWarning() {
   const [message, setMessage] = useState('Checking storage configuration…')
@@ -29,20 +31,23 @@ export function ConfigurationWarning() {
 
   if (!message) return null
   return (
-    <aside aria-label="Configuration warning" aria-live="polite" className="file-browser__warning">
-      {message}
-      {hasError ? (
-        <button
-          onClick={() => {
-            setHasError(false)
-            setMessage('Checking storage configuration…')
-            setRevision((current) => current + 1)
-          }}
-          type="button"
-        >
-          Retry configuration check
-        </button>
-      ) : null}
-    </aside>
+    <Alert aria-label="Configuration warning" aria-live="polite" className="flex flex-wrap items-center gap-x-3 rounded-none border-x-0 border-t-0">
+      <AlertDescription className="flex flex-wrap items-center gap-3 text-foreground">
+        {message}
+        {hasError ? (
+          <Button
+            onClick={() => {
+              setHasError(false)
+              setMessage('Checking storage configuration…')
+              setRevision((current) => current + 1)
+            }}
+            type="button"
+            variant="outline"
+          >
+            Retry configuration check
+          </Button>
+        ) : null}
+      </AlertDescription>
+    </Alert>
   )
 }

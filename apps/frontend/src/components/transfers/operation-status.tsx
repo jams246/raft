@@ -1,4 +1,6 @@
 import type { TransferState } from '@raft/shared'
+import { Card, CardContent } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
 import { CancelTransferButton } from './cancel-transfer-button'
 import { formatFileSize } from '../file-browser/file-browser-list'
 
@@ -24,40 +26,37 @@ export function OperationStatus({ operation, isConnected, notice, uploadPending,
 
   return (
     <>
-      <section
-        aria-label="Operation status"
-        className="file-browser__operation-area operation-status"
-        hidden={!operation && !notice && !uploadPending && !transferPending}
-      >
-        {operation ? (
-          <>
-            <p className="operation-status__item">{getTransferDescription(operation)}</p>
-            <p className="operation-status__phase">{phaseDescription}</p>
-            {!isConnected ? <p className="operation-status__connection">Reconnecting…</p> : null}
-            <progress
-              aria-label={`${getOperationLabel(operation)} progress`}
-              className="operation-status__progress"
-              max={PERCENTAGE_TOTAL}
-              value={percentage}
-            />
-            {percentage === undefined ? null : <p className="operation-status__percentage">{percentage}%</p>}
-            <p className="operation-status__bytes">
-              {formatFileSize(operation.bytesProcessed)} {byteLabel} of{' '}
-              {operation.bytesTotal === null ? 'unknown total' : `${formatFileSize(operation.bytesTotal)} total`}
-            </p>
-            <p className="operation-status__items">
-              {operation.current} / {operation.total} items completed
-            </p>
-            {operation.kind === 'upload' || operation.kind === 'copy' ? (
-              <CancelTransferButton isConnected={isConnected} key={operation.id} kind={operation.kind} operationId={operation.id} />
-            ) : null}
-          </>
-        ) : null}
-        {!operation && uploadPending ? <p>Starting upload…</p> : null}
-        {!operation && transferPending ? <p>Starting {transferPendingKind}…</p> : null}
-        {notice ? <p className="operation-status__notice">{notice}</p> : null}
-      </section>
-      <output aria-atomic="true" aria-live="polite" className="operation-status__announcer">
+      {operation || notice || uploadPending || transferPending ? (
+        <Card className="mx-4 my-3 max-h-[40dvh] overflow-auto wrap-anywhere border border-border bg-secondary">
+          <CardContent className="p-3">
+            <section aria-label="Operation status" className="grid gap-1 p-3">
+              {operation ? (
+                <>
+                  <p className="operation-status__item">{getTransferDescription(operation)}</p>
+                  <p className="operation-status__phase">{phaseDescription}</p>
+                  {!isConnected ? <p className="operation-status__connection">Reconnecting…</p> : null}
+                  <Progress aria-label={`${getOperationLabel(operation)} progress`} max={PERCENTAGE_TOTAL} value={percentage} />
+                  {percentage === undefined ? null : <p className="operation-status__percentage">{percentage}%</p>}
+                  <p className="operation-status__bytes">
+                    {formatFileSize(operation.bytesProcessed)} {byteLabel} of{' '}
+                    {operation.bytesTotal === null ? 'unknown total' : `${formatFileSize(operation.bytesTotal)} total`}
+                  </p>
+                  <p className="operation-status__items">
+                    {operation.current} / {operation.total} items completed
+                  </p>
+                  {operation.kind === 'upload' || operation.kind === 'copy' ? (
+                    <CancelTransferButton isConnected={isConnected} key={operation.id} kind={operation.kind} operationId={operation.id} />
+                  ) : null}
+                </>
+              ) : null}
+              {!operation && uploadPending ? <p>Starting upload…</p> : null}
+              {!operation && transferPending ? <p>Starting {transferPendingKind}…</p> : null}
+              {notice ? <p className="operation-status__notice">{notice}</p> : null}
+            </section>
+          </CardContent>
+        </Card>
+      ) : null}
+      <output aria-atomic="true" aria-live="polite" className="sr-only">
         {announcement}
       </output>
     </>

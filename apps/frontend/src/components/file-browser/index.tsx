@@ -68,7 +68,7 @@ export function FileBrowser() {
   )
 
   return (
-    <main className="file-browser">
+    <main className="file-browser flex h-dvh flex-col bg-background">
       <FileBrowserHeader
         isDualPane={isDualPane}
         transferWorkflow={transferWorkflow}
@@ -76,7 +76,9 @@ export function FileBrowser() {
         onToggleDualPane={() => toggleDualPane(isDualPane)}
       />
       <ConfigurationWarning />
-      <div className={isDualPane ? 'file-browser__panes file-browser__panes--dual' : 'file-browser__panes'}>
+      <div
+        className={`file-browser__panes grid min-h-0 flex-1 gap-0 ${isDualPane ? 'file-browser__panes--dual grid-cols-2 [@media(max-width:700px)]:grid-cols-1' : 'grid-cols-1'}`}
+      >
         {visiblePanes.map((pane, index) => (
           <FileBrowserPane
             isFrozen={Boolean(destinationPane && pane.id !== destinationPane.id)}

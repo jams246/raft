@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 interface FileBrowserToolbarProps {
   position: 'left' | 'right'
@@ -19,6 +21,7 @@ interface FileBrowserToolbarProps {
   onRename: () => void
   onUploadFiles: () => void
   onUploadFolder: () => void
+  onDialogTriggerFocus: (button: HTMLButtonElement) => void
 }
 
 export function FileBrowserToolbar({
@@ -37,9 +40,16 @@ export function FileBrowserToolbar({
   onMove,
   onRename,
   onUploadFiles,
-  onUploadFolder
+  onUploadFolder,
+  onDialogTriggerFocus
 }: FileBrowserToolbarProps) {
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false)
+  useEffect(() => {
+    if (isOperationLocked) {
+      // oxlint-disable-next-line react/set-state-in-effect -- Close the menu on an external operation lock.
+      setIsUploadMenuOpen(false)
+    }
+  }, [isOperationLocked])
   const copyLabel = position === 'left' ? 'Copy →' : '← Copy'
   const moveLabel = position === 'left' ? 'Move →' : '← Move'
 
@@ -53,46 +63,38 @@ export function FileBrowserToolbar({
   ]
 
   return (
-    <div aria-label="File actions" className="file-browser__toolbar">
-      <div className="file-browser__upload-control">
-        <button
-          aria-expanded={isUploadMenuOpen}
-          aria-haspopup="true"
-          disabled={!canUpload || isOperationLocked}
-          onClick={() => setIsUploadMenuOpen((isOpen) => !isOpen)}
-          type="button"
-        >
-          Upload
-        </button>
-        {isUploadMenuOpen ? (
-          <div aria-label="Upload options" className="file-browser__upload-menu">
-            <button
-              disabled={!canUpload || isOperationLocked}
-              onClick={() => {
-                setIsUploadMenuOpen(false)
-                onUploadFiles()
-              }}
-              type="button"
-            >
-              Files…
-            </button>
-            <button
-              disabled={!canUpload || isOperationLocked}
-              onClick={() => {
-                setIsUploadMenuOpen(false)
-                onUploadFolder()
-              }}
-              type="button"
-            >
-              Folder…
-            </button>
-          </div>
-        ) : null}
-      </div>
+    <div aria-label="File actions" className="flex flex-wrap items-center gap-2 border-b border-divider px-5 py-3">
+      <DropdownMenu open={isUploadMenuOpen} onOpenChange={setIsUploadMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            className="[@media(max-width:600px)]:[flex:1_1_40%]"
+            disabled={!canUpload || isOperationLocked}
+            onFocus={(event) => onDialogTriggerFocus(event.currentTarget)}
+            variant="outline"
+          >
+            Upload
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" aria-label="Upload options" className="min-w-40 border border-border bg-popover text-popover-foreground">
+          <DropdownMenuItem disabled={!canUpload || isOperationLocked} onSelect={onUploadFiles}>
+            Files…
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!canUpload || isOperationLocked} onSelect={onUploadFolder}>
+            Folder…
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {actions.map((action) => (
-        <button disabled={action.disabled} key={action.label} onClick={action.onClick} type="button">
+        <Button
+          className="[@media(max-width:600px)]:[flex:1_1_40%]"
+          disabled={action.disabled}
+          key={action.label}
+          onClick={action.onClick}
+          onFocus={(event) => onDialogTriggerFocus(event.currentTarget)}
+          variant="outline"
+        >
           {action.label}
-        </button>
+        </Button>
       ))}
     </div>
   )

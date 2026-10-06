@@ -1,203 +1,118 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --font-sans: 'Segoe UI', Arial, Helvetica, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-selection: var(--selection);
+  --color-selection-hover: var(--selection-hover);
+  --color-disabled: var(--disabled);
+  --color-divider: var(--divider);
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-xl: 0rem;
+  --radius-2xl: 0rem;
+  --radius-3xl: 0rem;
+}
+
 :root {
   color-scheme: dark;
-  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
-  background: var(--canvas);
-  color: var(--text);
+  --radius: 0rem;
+  --background: #111318;
+  --foreground: #e2e2e9;
+  --card: #1b1d23;
+  --card-foreground: #e2e2e9;
+  --popover: #252830;
+  --popover-foreground: #e2e2e9;
+  --primary: #adc6ff;
+  --primary-foreground: #102f60;
+  --secondary: #252830;
+  --secondary-foreground: #e2e2e9;
+  --muted: #1b1d23;
+  --muted-foreground: #b8becb;
+  --accent: #2d323e;
+  --accent-foreground: #e2e2e9;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+  --border: #444852;
+  --input: #444852;
+  --ring: #adc6ff;
+  --selection: #293e60;
+  --selection-hover: #31496f;
+  --disabled: #818793;
+  --divider: #30343d;
+  --backdrop: rgb(0 0 0 / 70%);
 }
 
-* {
-  box-sizing: border-box;
-  border-radius: 0;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-}
-
-button {
-  min-height: 2.5rem;
-  padding: 0.5rem 0.85rem;
-  border: 1px solid var(--outline);
-  background: var(--surface);
-  color: inherit;
-  font: inherit;
-}
-
-button:disabled {
-  color: var(--disabled);
-  cursor: not-allowed;
-}
-
-.file-browser {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: 100dvh;
-  padding: 0;
-  gap: 0;
-}
-
-.file-browser__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--outline);
-}
-
-.file-browser__warning {
-  margin: 0;
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--outline);
-  background: var(--surface);
-}
-
-.file-browser:has(> .file-browser__warning) {
-  grid-template-rows: auto auto minmax(0, 1fr);
-}
-
-.file-browser__warning button {
-  margin-inline-start: 0.75rem;
-}
-
-.file-browser__title {
-  margin: 0;
-  font-size: 1.35rem;
-}
-
-.file-browser__panes {
-  display: grid;
-  grid-auto-rows: minmax(0, 1fr);
-  min-width: 0;
-  min-height: 0;
-}
-
-.file-browser__panes--dual {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-}
-
-.file-browser__pane {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  border: 1px solid var(--outline);
-  background: var(--surface);
-  overflow: auto;
-}
-
-.file-browser__breadcrumbs,
-.file-browser__toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--divider);
-}
-
-.file-browser__breadcrumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.file-browser__breadcrumb-link,
-.file-browser__entry-button,
-.file-browser__sort-button {
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.file-browser__breadcrumb-link {
-  color: var(--accent);
-}
-
-.file-browser__sort-button {
-  text-align: inherit;
-}
-
-.file-browser__sort-button:focus-visible,
-.file-browser__entry-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.file-browser__toolbar {
-  gap: 0.4rem;
-}
-
-.file-browser__toolbar button {
-  min-height: 2.15rem;
-  padding: 0.35rem 0.65rem;
-}
-
-.file-browser__list {
-  flex: 1;
-  padding: 0 1.5rem 1.5rem;
-}
-
-.file-browser__table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.file-browser__heading {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--outline);
-  text-align: left;
-}
-
-.file-browser__size-heading,
-.file-browser__size {
-  width: 8rem;
-  text-align: right;
-}
-
-.file-browser__entry td {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--divider);
-}
-
-.file-browser__entry--selected {
-  background: var(--selection);
-}
-
-.file-browser__entry-button {
-  text-align: left;
-}
-
-.file-browser__entry--unsupported {
-  color: var(--muted);
-}
-
-.file-browser__status {
-  margin-left: 0.75rem;
-  font-size: 0.9rem;
-}
-
-.file-browser__empty {
-  margin: 0;
-  color: var(--muted);
-}
-
-.file-browser__operation-area {
-  min-height: 3.5rem;
-  border-top: 1px solid var(--outline);
-  padding: 0.75rem;
-}
-
-@media (max-width: 600px) {
-  .file-browser__header {
-    align-items: flex-start;
-    gap: 0.75rem;
+@keyframes progress-indeterminate {
+  from {
+    transform: translateX(-100%);
   }
 
-  .file-browser__toolbar button {
-    flex: 1 1 40%;
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    box-sizing: border-box;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-image: none !important;
+  }
+
+  body {
+    @apply min-w-80 bg-background text-foreground;
+    margin: 0;
+  }
+
+  button,
+  input,
+  select {
+    accent-color: var(--ring);
+  }
+
+  button:enabled {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring) !important;
+    outline-offset: 2px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

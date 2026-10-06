@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 
 const NOT_FOUND_STATUS = 404
 
@@ -24,7 +26,8 @@ export function CancelTransferButton({ operationId, kind, isConnected }: { opera
 
   return (
     <>
-      <button
+      <Button
+        variant="outline"
         disabled={!isConnected || isCancelling}
         onClick={() => {
           void cancelTransfer()
@@ -32,8 +35,12 @@ export function CancelTransferButton({ operationId, kind, isConnected }: { opera
         type="button"
       >
         {isCancelling ? 'Cancelling…' : `Cancel ${kind}`}
-      </button>
-      {errorMessage ? <p role="alert">{errorMessage}</p> : null}
+      </Button>
+      {errorMessage ? (
+        <Alert variant="destructive">
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      ) : null}
     </>
   )
 }

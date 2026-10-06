@@ -1,110 +1,80 @@
 'use client'
 
-import type { UploadConflict, UploadConflictPolicy } from '@raft/shared'
-import { useEffect, useRef, useState } from 'react'
-import type { UploadSelection } from './file-browser-upload'
-import { TransferConflicts } from '../transfers/transfer-conflicts'
-import { checkUploadConflicts } from '../transfers/transfer-requests'
+import { useCallback, useEffect, useRef } from 'react'
 import { useUploadRequest } from './use-upload-request'
+import { useUploadPreflight } from './use-upload-preflight'
+import { UploadDialogView } from './upload-dialog-view'
+import { useUploadDialogState } from './use-upload-dialog-state'
+import { useOperationDialogOpenChange } from '../file-operations/use-operation-dialog-open-change'
+import type { UploadDialogProps } from './upload-dialog.types'
 
-export interface UploadDialogProps {
-  directory: string
-  selection: UploadSelection
-  isOperationLocked: boolean
-  onClose: () => void
-  onRequestStarted: (controller: AbortController) => void
-  onRequestFinished: (controller: AbortController, error?: string) => void
-}
+export type { UploadDialogProps } from './upload-dialog.types'
 
-export function UploadDialog({ directory, selection, isOperationLocked, onClose, onRequestStarted, onRequestFinished }: UploadDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const mounted = useRef(true)
-  const [conflicts, setConflicts] = useState<UploadConflict[]>()
-  const [policy, setPolicy] = useState<UploadConflictPolicy>('rename')
-  const [checkRevision, setCheckRevision] = useState(0)
-  const [errorMessage, setErrorMessage] = useState('')
-  const isChecking = conflicts === undefined && !errorMessage
+export function UploadDialog({
+  directory,
+  selection,
+  canRetryCheck,
+  onDisableRetry,
+  isOperationLocked,
+  open,
+  onOpenChange,
+  onCloseAutoFocus,
+  onRequestStarted,
+  onRequestFinished
+}: UploadDialogProps) {
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
+  const mounted = useRef(false)
+  const { policy, setPolicy, errorMessage, setErrorMessage, reset, beginRequest } = useUploadDialogState(onRequestStarted)
 
-  const { sendUpload, isSubmitting, canRetryCheck } = useUploadRequest({
+  const { sendUpload, isSubmitting } = useUploadRequest({
     directory,
     selection,
     isOperationLocked,
-    onRequestStarted,
+    onRequestStarted: beginRequest,
     onRequestFinished,
-    dialogRef,
     mounted,
+    onDisableRetry,
     onError: setErrorMessage
   })
+  const startWithoutConflicts = useCallback(() => {
+    void sendUpload('rename')
+  }, [sendUpload])
+  const { conflicts, isChecking, retry } = useUploadPreflight({
+    directory,
+    selection,
+    open,
+    hasError: Boolean(errorMessage),
+    onStartWithoutConflicts: startWithoutConflicts,
+    onError: setErrorMessage
+  })
+  const changeOpen = useOperationDialogOpenChange(isSubmitting, onOpenChange, reset)
 
   useEffect(() => {
-    const abortController = new AbortController()
     mounted.current = true
-    dialogRef.current?.showModal()
-
-    async function checkConflicts() {
-      try {
-        const checkedConflicts = await checkUploadConflicts(directory, selection, abortController.signal)
-        if (abortController.signal.aborted) return
-        setConflicts(checkedConflicts)
-        if (checkedConflicts.length === 0) void sendUpload('rename')
-      } catch (error) {
-        if (!abortController.signal.aborted && mounted.current) setErrorMessage(error instanceof Error ? error.message : 'Unable to check upload names.')
-      }
-    }
-
-    void checkConflicts()
     return () => {
       mounted.current = false
-      abortController.abort()
     }
-    // checkRevision retries preflight after a failed check.
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies
-  }, [checkRevision, directory, selection, sendUpload])
+  }, [])
 
   return (
-    <dialog
-      aria-labelledby="upload-title"
-      className="upload-dialog"
-      onCancel={(event) => {
-        if (isSubmitting) event.preventDefault()
+    <UploadDialogView
+      canRetryCheck={canRetryCheck}
+      cancelButtonRef={cancelButtonRef}
+      conflicts={conflicts}
+      errorMessage={errorMessage}
+      isChecking={isChecking}
+      isOperationLocked={isOperationLocked}
+      isSubmitting={isSubmitting}
+      onCancel={() => changeOpen(false)}
+      onCloseAutoFocus={onCloseAutoFocus}
+      onOpenChange={changeOpen}
+      onPolicyChange={setPolicy}
+      onRetry={retry}
+      onUpload={() => {
+        void sendUpload(policy)
       }}
-      onClose={onClose}
-      ref={dialogRef}
-    >
-      <h2 className="upload-dialog__title" id="upload-title">
-        Upload
-      </h2>
-      {isChecking ? <p aria-live="polite">Checking upload names…</p> : null}
-      <TransferConflicts kind="upload" conflicts={conflicts} policy={policy} disabled={isSubmitting || isOperationLocked} onPolicyChange={setPolicy} />
-      {errorMessage ? <p role="alert">{errorMessage}</p> : null}
-      <div className="upload-dialog__actions">
-        <button disabled={isSubmitting} onClick={() => dialogRef.current?.close()} type="button">
-          Cancel
-        </button>
-        {conflicts ? (
-          <button
-            disabled={isSubmitting || isOperationLocked || !canRetryCheck}
-            onClick={() => {
-              void sendUpload(policy)
-            }}
-            type="button"
-          >
-            {isSubmitting ? 'Uploading…' : 'Upload'}
-          </button>
-        ) : null}
-        {errorMessage && canRetryCheck ? (
-          <button
-            disabled={isSubmitting || isChecking || isOperationLocked}
-            onClick={() => {
-              setErrorMessage('')
-              setCheckRevision((revision) => revision + 1)
-            }}
-            type="button"
-          >
-            Try checking again
-          </button>
-        ) : null}
-      </div>
-    </dialog>
+      open={open}
+      policy={policy}
+    />
   )
 }

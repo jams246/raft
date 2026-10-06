@@ -2,6 +2,9 @@
 
 import type { ConflictPolicy } from '@raft/shared'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { TransferConflicts } from './transfer-conflicts'
 import { startCopyTransfer } from './transfer-requests'
 import { useCopyPreflight } from './use-copy-preflight'
@@ -71,32 +74,45 @@ export function CopyWorkflow({
   }
 
   return (
-    <section aria-label={`${actionLabel} controls`} className="copy-workflow">
-      {isChecking ? <p aria-live="polite">Checking {kind} conflicts…</p> : null}
-      {destinationPath === '/' ? <p>Choose a folder under My Files to {kind} into.</p> : null}
-      <TransferConflicts kind="copy" conflicts={conflicts} policy={policy} disabled={isOperationLocked} onPolicyChange={setPolicy} />
-      {errorMessage ? <p role="alert">{errorMessage}</p> : null}
-      <div className="copy-workflow__actions">
-        <button onClick={onCancel} type="button">
-          Cancel
-        </button>
-        {chooseDestination || conflicts ? (
-          <button disabled={isChecking || isOperationLocked || destinationPath === '/'} onClick={copyHere} type="button">
-            {conflicts ? actionLabel : `${actionLabel} Here`}
-          </button>
-        ) : null}
-        {errorMessage ? (
-          <button
-            disabled={isChecking || isOperationLocked}
-            onClick={() => {
-              void checkConflicts()
-            }}
-            type="button"
-          >
-            Try checking again
-          </button>
-        ) : null}
-      </div>
-    </section>
+    <Card className="mx-4 my-3 max-h-[40dvh] overflow-auto wrap-anywhere border border-border bg-card">
+      <CardContent className="grid gap-3 p-4">
+        <section aria-label={`${actionLabel} controls`} className="grid gap-3">
+          {isChecking ? (
+            <p aria-live="polite" className="m-0">
+              Checking {kind} conflicts…
+            </p>
+          ) : null}
+          {destinationPath === '/' ? <p className="m-0">Choose a folder under My Files to {kind} into.</p> : null}
+          <TransferConflicts kind="copy" conflicts={conflicts} policy={policy} disabled={isOperationLocked} onPolicyChange={setPolicy} />
+          {errorMessage ? (
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button onClick={onCancel} type="button" variant="outline">
+              Cancel
+            </Button>
+            {chooseDestination || conflicts ? (
+              <Button disabled={isChecking || isOperationLocked || destinationPath === '/'} onClick={copyHere} type="button">
+                {conflicts ? actionLabel : `${actionLabel} Here`}
+              </Button>
+            ) : null}
+            {errorMessage ? (
+              <Button
+                disabled={isChecking || isOperationLocked}
+                onClick={() => {
+                  void checkConflicts()
+                }}
+                type="button"
+                variant="outline"
+              >
+                Try checking again
+              </Button>
+            ) : null}
+          </div>
+        </section>
+      </CardContent>
+    </Card>
   )
 }

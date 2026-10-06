@@ -1,10 +1,5 @@
 import type { Metadata } from 'next'
-import './themes.css'
 import './globals.css'
-import './dialogs.css'
-import './workspace.css'
-import './upload.css'
-import './copy.css'
 
 export const metadata: Metadata = {
   title: 'RAFT - Remote Access File Tool',
@@ -13,8 +8,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html className="dark" lang="en">
+      <body className="font-sans">{children}</body>
     </html>
   )
 }

@@ -53,6 +53,7 @@
     "unicorn/prefer-spread": "allow"
   },
   "ignorePatterns": [
+    ".verification/**",
     ".runtime/**",
     ".codex/**",
     "**/node_modules/**",

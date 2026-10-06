@@ -1,4 +1,7 @@
+import { Fragment } from 'react'
 import { getBreadcrumbs } from './file-browser-breadcrumbs'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { Button } from '@/components/ui/button'
 
 interface FileBrowserLocationProps {
   path: string
@@ -9,19 +12,33 @@ interface FileBrowserLocationProps {
 export function FileBrowserLocation({ path, isFrozen, onNavigate }: FileBrowserLocationProps) {
   const breadcrumbs = getBreadcrumbs(path)
   return (
-    <nav aria-label="Current location" className="file-browser__breadcrumbs">
-      {breadcrumbs.map((breadcrumb, index) => (
-        <span className="file-browser__breadcrumb" key={breadcrumb.path}>
-          {index > 0 ? <span aria-hidden="true">/</span> : null}
-          {index === breadcrumbs.length - 1 ? (
-            <span aria-current="page">{breadcrumb.name}</span>
-          ) : (
-            <button className="file-browser__breadcrumb-link" disabled={isFrozen} onClick={() => onNavigate(breadcrumb.path)} type="button">
-              {breadcrumb.name}
-            </button>
-          )}
-        </span>
-      ))}
-    </nav>
+    <Breadcrumb
+      aria-label="Current location"
+      className="flex min-h-[3.75rem] flex-none items-center border-b border-divider bg-secondary px-5 py-3 font-mono text-sm"
+    >
+      <BreadcrumbList className="flex-wrap gap-2">
+        {breadcrumbs.map((breadcrumb, index) => (
+          <Fragment key={breadcrumb.path}>
+            {index > 0 ? <BreadcrumbSeparator className="text-muted-foreground">/</BreadcrumbSeparator> : null}
+            <BreadcrumbItem>
+              {index === breadcrumbs.length - 1 ? (
+                <BreadcrumbPage className="text-foreground">{breadcrumb.name}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink asChild>
+                  <Button
+                    className="h-auto p-0 text-primary hover:bg-transparent"
+                    disabled={isFrozen}
+                    onClick={() => onNavigate(breadcrumb.path)}
+                    variant="ghost"
+                  >
+                    {breadcrumb.name}
+                  </Button>
+                </BreadcrumbLink>
+              )}
+            </BreadcrumbItem>
+          </Fragment>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
   )
 }

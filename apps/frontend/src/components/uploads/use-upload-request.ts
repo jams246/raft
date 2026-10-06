@@ -6,8 +6,8 @@ import type { UploadDialogProps } from './upload-dialog'
 import { createUploadRequest, ensureUploadSucceeded } from '../transfers/transfer-requests'
 
 type UploadRequestOptions = Pick<UploadDialogProps, 'directory' | 'selection' | 'isOperationLocked' | 'onRequestStarted' | 'onRequestFinished'> & {
-  dialogRef: RefObject<HTMLDialogElement | null>
   mounted: RefObject<boolean>
+  onDisableRetry: () => void
   onError: (message: string) => void
 }
 
@@ -17,14 +17,13 @@ export function useUploadRequest({
   isOperationLocked,
   onRequestStarted,
   onRequestFinished,
-  dialogRef,
   mounted,
+  onDisableRetry,
   onError
 }: UploadRequestOptions) {
   const operationLocked = useRef(isOperationLocked)
-  const requestStarted = useRef(false)
+  const requestStartedFor = useRef<UploadDialogProps['selection'] | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [canRetryCheck, setCanRetryCheck] = useState(true)
 
   useLayoutEffect(() => {
     operationLocked.current = isOperationLocked
@@ -32,21 +31,20 @@ export function useUploadRequest({
 
   const sendUpload = useCallback(
     async (uploadPolicy: UploadConflictPolicy) => {
-      if (operationLocked.current || requestStarted.current) return
+      if (operationLocked.current || requestStartedFor.current === selection) return
       const bytesTotal = selection.files.reduce((total, file) => total + file.size, 0)
       if (!Number.isSafeInteger(bytesTotal) || bytesTotal < 0) {
-        setCanRetryCheck(false)
+        onDisableRetry()
         onError('The selected files exceed the supported upload size.')
         return
       }
-      requestStarted.current = true
+      requestStartedFor.current = selection
       const controller = new AbortController()
       setIsSubmitting(true)
       onError('')
       try {
         const request = createUploadRequest(directory, selection, uploadPolicy, bytesTotal, controller.signal)
         onRequestStarted(controller)
-        dialogRef.current?.close()
         await ensureUploadSucceeded(await request)
         onRequestFinished(controller)
       } catch (error) {
@@ -58,8 +56,8 @@ export function useUploadRequest({
     },
     // mounted is read after awaiting the upload to avoid updates after unmount.
     // oxlint-disable-next-line react/memo-dependencies
-    [directory, onRequestFinished, onRequestStarted, selection, dialogRef, mounted, onError]
+    [directory, onDisableRetry, onError, onRequestFinished, onRequestStarted, selection, mounted]
   )
 
-  return { sendUpload, isSubmitting, canRetryCheck }
+  return { sendUpload, isSubmitting }
 }

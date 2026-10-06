@@ -63,7 +63,7 @@ export function FileBrowserPane({
   return (
     <section
       aria-label={`${position === 'left' ? 'Left' : 'Right'} file pane`}
-      className="file-browser__pane"
+      className="flex min-h-0 min-w-0 flex-col overflow-auto border border-border bg-card focus-within:border-ring"
       ref={paneRef}
       onFocusCapture={onInteraction}
       onPointerDownCapture={onInteraction}

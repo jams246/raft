@@ -4,6 +4,8 @@ import type { DirectoryListing, FileEntry } from '@raft/shared'
 import type { MouseEvent } from 'react'
 import { FileBrowserTable } from './file-browser-table'
 import type { SortColumn, SortDirection } from './file-browser-list'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 
 export interface FileBrowserListingProps {
   isFrozen?: boolean
@@ -48,24 +50,24 @@ export function FileBrowserListing({
     <section
       aria-busy={isLoading}
       aria-label="Files"
-      className="file-browser__list"
+      className="flex-1 px-6 pb-6 [@media(max-width:700px)]:px-3 [@media(max-width:700px)]:pb-4"
       onClick={(event) => {
         if (event.target instanceof Element && event.target.closest('tr')) return
         onClearSelection()
       }}
     >
       {isLoading && !hasCurrentListing ? (
-        <p aria-live="polite" className="file-browser__empty">
+        <p aria-live="polite" className="py-2 text-sm text-muted-foreground">
           Loading directory…
         </p>
       ) : null}
       {hasError ? (
-        <div className="file-browser__empty" role="alert">
-          <p>Unable to load this directory. Check the server connection and try again.</p>
-          <button onClick={onRetry} type="button">
+        <Alert className="mt-3 border-destructive text-destructive" variant="destructive">
+          <AlertDescription>Unable to load this directory. Check the server connection and try again.</AlertDescription>
+          <Button onClick={onRetry} variant="outline">
             Try again
-          </button>
-        </div>
+          </Button>
+        </Alert>
       ) : null}
       {hasCurrentListing && !hasError ? (
         <>
@@ -82,7 +84,7 @@ export function FileBrowserListing({
             onSelect={onSelect}
           />
           {isEmpty ? (
-            <div className="file-browser__empty">
+            <div className="py-3 text-sm text-muted-foreground">
               {path === '/' ? (
                 <>
                   <p>No folders available.</p>
