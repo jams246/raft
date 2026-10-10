@@ -6,6 +6,10 @@ import { toApiErrorCode, toPresentationFailure } from '../../shared/api-failure.
 import { DirectoryEvents } from '../Application/directory-events.js'
 import type { OperationEvent, TransferSnapshot } from '../Application/ports.js'
 
+// Proxies drop idle connections (the Next dev proxy after 30s), so the stream sends an SSE comment well inside that window.
+// EventSource ignores comments, so clients never see the keep-alive.
+const KEEP_ALIVE_INTERVAL_MS = 15_000
+
 @Controller()
 export class EventsController {
   constructor(private readonly directoryEvents: DirectoryEvents) {}
@@ -32,7 +36,11 @@ export class EventsController {
       } catch (error) {
         subscriber.error(toPresentationFailure(error) ?? toFailure(error))
       }
-      return () => unsubscribe?.()
+      const keepAlive = setInterval(() => subscriber.next({ comment: 'keep-alive' }), KEEP_ALIVE_INTERVAL_MS)
+      return () => {
+        clearInterval(keepAlive)
+        unsubscribe?.()
+      }
     })
   }
 }

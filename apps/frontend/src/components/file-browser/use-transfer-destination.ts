@@ -29,7 +29,7 @@ export function useTransferDestination({ panes, setPanes, createPane }: ReturnTy
       kind,
       sourcePaths: [...sourcePaths],
       destinationPath: existingDestinationPane?.path ?? '/',
-      destinationPane: existingDestinationPane ? undefined : createPane('/')
+      ...(existingDestinationPane ? {} : { destinationPane: createPane('/') })
     })
   }
 

@@ -1,7 +1,8 @@
 'use client'
 
-import type { ApiHealth } from '@raft/shared'
 import { useEffect, useState } from 'react'
+import { API_REQUEST_TIMEOUT_MS, apiJson } from '@/lib/api/api-request'
+import { decodeApiHealth } from '@/lib/api/decoders'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
@@ -12,10 +13,11 @@ export function ConfigurationWarning() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch('/api/health', { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Unable to check storage configuration.')
-        const health: ApiHealth = await response.json()
+    const failureMessage = 'Unable to check storage configuration.'
+    const options = { cache: 'no-store', failureMessage, signal: controller.signal, timeoutMs: API_REQUEST_TIMEOUT_MS } as const
+    // The rejection is handled by the catch below, which ignores cancellation from unmount or retry.
+    void apiJson('/api/health', options, decodeApiHealth)
+      .then((health) => {
         if (!controller.signal.aborted) setMessage(health.warnings?.join(' ') ?? '')
         return undefined
       })

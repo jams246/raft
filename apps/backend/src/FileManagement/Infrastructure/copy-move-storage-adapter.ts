@@ -40,7 +40,7 @@ export class CopyMoveStorageAdapter {
     ).then((result) => ({
       bytesWritten: result.bytesWritten,
       bytesTotal: result.matchesPreparedSize ? item.bytes : null,
-      cleanupFailure: result.cleanupFailure,
+      ...(result.cleanupFailure === undefined ? {} : { cleanupFailure: result.cleanupFailure }),
       matchesPreparedSize: result.matchesPreparedSize
     }))
   }

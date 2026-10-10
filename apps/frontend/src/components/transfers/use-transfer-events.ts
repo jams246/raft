@@ -2,6 +2,7 @@
 
 import type { TransferEvent, TransferState } from '@raft/shared'
 import { useLayoutEffect, useRef, useState } from 'react'
+import { decodeTransferEvent } from '@/lib/api/transfer-event-decoder'
 
 export function useTransferEvents(
   visiblePaths: string[],
@@ -13,9 +14,7 @@ export function useTransferEvents(
   const [operation, setOperation] = useState<TransferState | null>(null)
   const [notice, setNotice] = useState('')
   const hadActiveOperation = useRef(false)
-  const pathParameters = new URLSearchParams()
-  visiblePaths.forEach((path) => pathParameters.append('path', path))
-  const pathQuery = pathParameters.toString()
+  const pathQuery = new URLSearchParams(visiblePaths.map((path) => ['path', path])).toString()
   const [connection, setConnection] = useState({ pathQuery, isConnected: false })
   if (connection.pathQuery !== pathQuery) setConnection({ pathQuery, isConnected: false })
 
@@ -29,12 +28,9 @@ export function useTransferEvents(
     })
     eventSource.addEventListener('message', (message) => {
       if (!isCurrent) return
-      let event: TransferEvent
-      try {
-        event = JSON.parse(message.data)
-      } catch {
-        return
-      }
+      if (typeof message.data !== 'string') return
+      const event = decodeTransferEvent(message.data)
+      if (event === undefined) return
 
       if (event.type === 'operation_state') {
         const operationEnded = !event.operation && hadActiveOperation.current

@@ -12,23 +12,30 @@ export function createUploadSelection(files: File[], isFolder: boolean): UploadS
     return { files, manifest: { items } }
   }
 
-  const item: UploadManifestItem = { name: files[0].webkitRelativePath.split('/')[0], type: 'directory', files: [] }
-  files.forEach((file, part) => {
+  let folderName: string | undefined
+  const folderFiles: UploadManifestItem['files'] = []
+  for (const [part, file] of files.entries()) {
     const components = file.webkitRelativePath.split('/')
-    if (components.length < 2 || components.some((component) => !component || component === '.' || component === '..')) {
+    const [componentFolder, ...relativeComponents] = components
+    if (
+      componentFolder === undefined ||
+      relativeComponents.length === 0 ||
+      components.some((component) => !component || component === '.' || component === '..')
+    ) {
       throw new Error('The selected folder contains an invalid relative path.')
     }
-    const [folderName, ...relativeComponents] = components
-    if (item.name !== folderName) throw new Error('Select one folder at a time.')
-    item.files.push({ part, path: relativeComponents.join('/') })
-  })
+    folderName ??= componentFolder
+    if (folderName !== componentFolder) throw new Error('Select one folder at a time.')
+    folderFiles.push({ part, path: relativeComponents.join('/') })
+  }
+  if (folderName === undefined) throw new Error('The selected folder contains no files.')
 
-  return { files, manifest: { items: [item] } }
+  return { files, manifest: { items: [{ name: folderName, type: 'directory', files: folderFiles }] } }
 }
 
 export function createUploadFormData(selection: UploadSelection): FormData {
   const formData = new FormData()
   formData.append('manifest', JSON.stringify(selection.manifest))
-  selection.files.forEach((file, index) => formData.append(`file${index}`, file, file.name))
+  for (const [index, file] of selection.files.entries()) formData.append(`file${index}`, file, file.name)
   return formData
 }

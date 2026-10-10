@@ -87,6 +87,7 @@ function hasSamePreparedSource(expected: CopyMoveTreeEntry[], observed: CopyMove
     expected.every((entry, index) => {
       const current = observed[index]
       return (
+        current !== undefined &&
         entry.relativePath === current.relativePath &&
         entry.isDirectory === current.isDirectory &&
         entry.size === current.size &&

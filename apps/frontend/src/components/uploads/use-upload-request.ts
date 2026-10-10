@@ -3,7 +3,7 @@
 import type { UploadConflictPolicy } from '@raft/shared'
 import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { UploadDialogProps } from './upload-dialog'
-import { createUploadRequest, ensureUploadSucceeded } from '../transfers/transfer-requests'
+import { uploadSelection } from '../transfers/transfer-requests'
 
 type UploadRequestOptions = Pick<UploadDialogProps, 'directory' | 'selection' | 'isOperationLocked' | 'onRequestStarted' | 'onRequestFinished'> & {
   mounted: RefObject<boolean>
@@ -43,9 +43,9 @@ export function useUploadRequest({
       setIsSubmitting(true)
       onError('')
       try {
-        const request = createUploadRequest(directory, selection, uploadPolicy, bytesTotal, controller.signal)
+        const upload = uploadSelection(directory, selection, uploadPolicy, bytesTotal, controller.signal)
         onRequestStarted(controller)
-        await ensureUploadSucceeded(await request)
+        await upload
         onRequestFinished(controller)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to upload selected items.'

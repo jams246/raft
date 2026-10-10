@@ -1,14 +1,20 @@
 import { AnyFilesInterceptor } from '@nestjs/platform-express'
 import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor } from '@nestjs/common'
 import type { Readable } from 'node:stream'
-import { basename } from 'node:path'
+import { basename, dirname } from 'node:path'
 import { type Observable, catchError, from, mergeMap, race, throwError } from 'rxjs'
 import { Failure, toFailure } from '../../shared/failures.js'
 import { toPresentationFailure } from '../../shared/api-failure.filter.js'
 import { UploadManagement } from '../Application/upload-management.js'
+import { MAX_UPLOAD_MANIFEST_BYTES } from '../Domain/upload-policy.js'
 import type { StoredUploadPart } from '../Application/ports.js'
-import type { UploadRequest } from './upload-request.js'
+import type { MultipartRequestState, UploadRequest } from './upload-request.js'
 import { readUploadManifest } from './upload-request.js'
+
+// Multipart parsing only slows down when one file's buffer fills, which small files never do, so a fast client could queue
+// every part of a large folder in memory. Reading the request pauses while too many parts wait for a write slot.
+const MAX_QUEUED_PARTS = 256
+const RESUME_QUEUED_PARTS = MAX_QUEUED_PARTS / 2
 
 interface IncomingFile {
   fieldname: string
@@ -39,7 +45,7 @@ export class UploadInterceptor implements NestInterceptor {
     const upload = request.transferUpload
     if (!upload) return next.handle()
 
-    const fileInterceptor = AnyFilesInterceptor({ storage: this.createStorage(request) })
+    const fileInterceptor = AnyFilesInterceptor({ storage: this.createStorage(request, upload), limits: { fieldSize: MAX_UPLOAD_MANIFEST_BYTES } })
     try {
       const multipart = from(Promise.resolve(new fileInterceptor().intercept(context, next))).pipe(mergeMap((result) => result))
       const uploadFailure = from(upload.failureNotification).pipe(mergeMap((error) => throwError(() => error)))
@@ -51,9 +57,19 @@ export class UploadInterceptor implements NestInterceptor {
     }
   }
 
-  private createStorage(request: UploadRequest): UploadStorage {
-    const upload = request.transferUpload!
+  private createStorage(request: UploadRequest, upload: MultipartRequestState): UploadStorage {
     const session = this.uploads.getSession(upload.sessionId)
+    let readingPaused = false
+    const pauseIfQueued = () => {
+      if (readingPaused || upload.activeStreams.size < MAX_QUEUED_PARTS) return
+      readingPaused = true
+      request.pause()
+    }
+    const resumeIfDrained = () => {
+      if (!readingPaused || upload.activeStreams.size > RESUME_QUEUED_PARTS) return
+      readingPaused = false
+      request.resume()
+    }
     return {
       _handleFile: (_request, file, callback) => {
         if (upload.failure !== undefined) {
@@ -63,10 +79,11 @@ export class UploadInterceptor implements NestInterceptor {
         }
         const currentName = this.uploads.partName(upload.sessionId, readUploadManifest(request), file.fieldname, file.originalname)
         upload.activeStreams.add(file.stream)
+        pauseIfQueued()
         const write = (async () => {
           try {
             const part = await this.uploads.storePart(upload.sessionId, file, currentName)
-            callback(null, { destination: session.stagingPath!, filename: basename(part.path), path: part.path, size: part.size })
+            callback(null, { destination: dirname(part.path), filename: basename(part.path), path: part.path, size: part.size })
           } catch (error) {
             const primaryFailure = error instanceof Failure ? error : (session.signal.reason ?? toPresentationFailure(error) ?? toFailure(error))
             const failure = upload.failure ?? primaryFailure
@@ -78,6 +95,7 @@ export class UploadInterceptor implements NestInterceptor {
             throw upload.failure
           } finally {
             upload.activeStreams.delete(file.stream)
+            resumeIfDrained()
           }
         })()
         track(upload.pendingWrites, write)
@@ -110,7 +128,7 @@ export class UploadInterceptor implements NestInterceptor {
   }
 }
 
-function latchFailure(upload: NonNullable<UploadRequest['transferUpload']>, error: unknown): void {
+function latchFailure(upload: MultipartRequestState, error: unknown): void {
   if (upload.failure !== undefined) return
   upload.failure = error
   upload.notifyFailure(error)

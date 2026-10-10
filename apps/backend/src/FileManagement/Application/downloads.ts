@@ -1,6 +1,8 @@
 import { basename } from 'node:path'
+import { elementAt } from '../../shared/collections.js'
 import { Failure } from '../../shared/failures.js'
 import { assertCanDownload, assertSafeArchiveName, assertUniqueDownloadNames } from '../Domain/download-policy.js'
+import type { ResolvedPath } from '../Domain/models.js'
 import { topLevelPaths } from '../Domain/path-policy.js'
 import type { DownloadContentPort, DownloadPlan, FileSystemPort } from './ports.js'
 
@@ -19,10 +21,10 @@ export class DownloadUseCases {
         return this.filesystem.resolvePath(virtualPath)
       })
     )
-    const topLevelVirtualPaths = topLevelPaths(resolvedPaths.map((path) => path.virtualPath))
-    const topLevel = topLevelVirtualPaths.map((path) => resolvedPaths.find((candidate) => candidate.virtualPath === path)!)
-    if (topLevel.length === 1 && !topLevel[0].isDirectory) {
-      return { type: 'file', virtualPath: topLevel[0].virtualPath }
+    const topLevel = selectTopLevel(resolvedPaths)
+    const [onlyItem] = topLevel
+    if (topLevel.length === 1 && onlyItem !== undefined && !onlyItem.isDirectory) {
+      return { type: 'file', virtualPath: onlyItem.virtualPath }
     }
 
     const trees = await Promise.all(topLevel.map((path) => this.filesystem.listSupportedTree(path)))
@@ -32,7 +34,7 @@ export class DownloadUseCases {
 
     const entries: Extract<DownloadPlan, { type: 'archive' }>['entries'] = []
     for (const [index, tree] of trees.entries()) {
-      const rootName = rootNames[index]
+      const rootName = elementAt(rootNames, index)
       assertSafeArchiveName(rootName, tree[0]?.isDirectory ?? false)
       for (const entry of tree) {
         const name = entry.relativePath ? `${rootName}/${entry.relativePath}` : rootName
@@ -47,10 +49,19 @@ export class DownloadUseCases {
         })
       }
     }
-    return { type: 'archive', fileName: selectedPaths.length === 1 ? `${rootNames[0]}.zip` : 'download.zip', entries }
+    return { type: 'archive', fileName: selectedPaths.length === 1 ? `${elementAt(rootNames, 0)}.zip` : 'download.zip', entries }
   }
 
   createArchive(plan: Extract<DownloadPlan, { type: 'archive' }>) {
     return this.archive.createArchive(plan)
   }
+}
+
+function selectTopLevel(resolvedPaths: ResolvedPath[]): ResolvedPath[] {
+  const resolvedByVirtualPath = new Map(resolvedPaths.map((path) => [path.virtualPath, path]))
+  return topLevelPaths(resolvedPaths.map((path) => path.virtualPath)).map((path) => {
+    const resolved = resolvedByVirtualPath.get(path)
+    if (resolved === undefined) throw new RangeError(`Top-level path ${path} was not among the resolved selection.`)
+    return resolved
+  })
 }

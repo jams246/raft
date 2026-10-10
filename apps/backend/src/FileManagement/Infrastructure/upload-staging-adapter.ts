@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { Failure } from '../../shared/failures.js'
+import { elementAt } from '../../shared/collections.js'
 import type { ConflictPolicy, MultipartFile, StoredUploadPart, UploadStagingPort } from '../Application/ports.js'
 import type { ResolvedPath, UploadConflict } from '../Domain/models.js'
 import type { UploadManifest } from '../Domain/upload-policy.js'
@@ -86,9 +87,9 @@ export class UploadStagingAdapter implements UploadStagingPort {
       await stageIncomingPaths(incomingPaths, preparedPaths, destination.absolutePath, operationId, signal)
       for (const [index, target] of targets.entries()) {
         signal.throwIfAborted()
-        const cleanupFailure = await promotePreparedReplacement(preparedPaths[index], target, operationId, index)
+        const cleanupFailure = await promotePreparedReplacement(elementAt(preparedPaths, index), target, operationId, index)
         completedItems += 1
-        onCompleted(index, manifest.items[index].name)
+        onCompleted(index, elementAt(manifest.items, index).name)
         if (cleanupFailure) throw cleanupFailure
       }
       signal.throwIfAborted()
@@ -118,8 +119,9 @@ export class UploadStagingAdapter implements UploadStagingPort {
       signal.throwIfAborted()
       const objectPath = join(stagingPath, `object-${itemIndex}`)
       if (item.type === 'file') {
-        const sourcePath = parts.get(item.files[0].part)
-        if (!sourcePath) throw invalidUpload()
+        const [file] = item.files
+        const sourcePath = file === undefined ? undefined : parts.get(file.part)
+        if (sourcePath === undefined) throw invalidUpload()
         await rename(sourcePath, objectPath)
       } else {
         await mkdir(objectPath)

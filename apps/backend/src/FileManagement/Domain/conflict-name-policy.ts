@@ -2,8 +2,8 @@ export function firstConflictCounter(name: string, type: 'file' | 'directory'): 
   const extensionStart = type === 'file' ? name.lastIndexOf('.') : -1
   const hasExtension = extensionStart > 0
   const fullBaseName = hasExtension ? name.slice(0, extensionStart) : name
-  const counterMatch = /^(.*) \((\d+)\)$/.exec(fullBaseName)
-  return counterMatch ? BigInt(counterMatch[2]) + 1n : 1n
+  const counter = /^(.*) \((\d+)\)$/.exec(fullBaseName)?.[2]
+  return counter === undefined ? 1n : BigInt(counter) + 1n
 }
 
 export function conflictName(name: string, type: 'file' | 'directory', counter: bigint): string {

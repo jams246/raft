@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { ApiRequestError } from '@/lib/api/api-error'
+import { API_REQUEST_TIMEOUT_MS, apiRequest } from '@/lib/api/api-request'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
@@ -14,11 +16,14 @@ export function CancelTransferButton({ operationId, kind, isConnected }: { opera
     setIsCancelling(true)
     setErrorMessage('')
     try {
-      const response = await fetch(`/api/${kind}/${encodeURIComponent(operationId)}/cancel`, { method: 'POST' })
-      if (!response.ok && response.status !== NOT_FOUND_STATUS) {
-        throw new Error(`Unable to cancel ${kind}. Try again.`)
-      }
-    } catch {
+      await apiRequest(`/api/${kind}/${encodeURIComponent(operationId)}/cancel`, {
+        method: 'POST',
+        failureMessage: `Unable to cancel ${kind}.`,
+        timeoutMs: API_REQUEST_TIMEOUT_MS
+      })
+    } catch (error: unknown) {
+      // A transfer that already finished is no longer active, which is the outcome cancelling asked for.
+      if (error instanceof ApiRequestError && error.status === NOT_FOUND_STATUS) return
       setErrorMessage(`Unable to cancel ${kind}. Check the connection and try again.`)
       setIsCancelling(false)
     }

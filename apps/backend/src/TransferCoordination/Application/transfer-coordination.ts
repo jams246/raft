@@ -16,11 +16,11 @@ export type TransferState = DomainTransferState
 interface ActiveTransfer {
   operation: TransferOperation
   cancellation: ReturnType<TransferRuntimePort['createCancellation']>
-  timer?: unknown
+  timer: unknown
 }
 
 export class TransferCoordination {
-  private active?: ActiveTransfer
+  private active: ActiveTransfer | undefined
 
   constructor(private readonly runtime: TransferRuntimePort) {}
 
@@ -53,8 +53,9 @@ export class TransferCoordination {
   }
 
   getSignal(id: string): AbortSignal {
-    this.assertActive(id)
-    return this.active!.cancellation.signal
+    const active = this.active
+    if (active?.operation.state.id !== id) throw new Failure('operation_busy', 'The transfer is no longer active.')
+    return active.cancellation.signal
   }
 
   progress(id: string, update: ProgressUpdate): void {
@@ -106,7 +107,7 @@ export class TransferCoordination {
   private reserve(kind: TransferKind, total: number, destinationName?: string, bytesTotal: number | null = null): TransferState {
     this.assertIdle()
     const operation = new TransferOperation(this.runtime.createId(), kind, total, destinationName, bytesTotal)
-    const active: ActiveTransfer = { operation, cancellation: this.runtime.createCancellation() }
+    const active: ActiveTransfer = { operation, cancellation: this.runtime.createCancellation(), timer: undefined }
     this.active = active
     this.runtime.publish({ type: 'operation_started', operation: operation.state })
     return operation.state

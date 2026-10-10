@@ -1,5 +1,6 @@
 import { basename } from 'node:path'
 import { toFailure, withFailure } from '../../shared/failures.js'
+import { elementAt } from '../../shared/collections.js'
 import {
   assertResolvedDestination,
   assertSelectionDestination,
@@ -22,8 +23,9 @@ export class CopyMoveUseCases {
     const conflicts = await this.filesystem.getConflicts(destination, candidates)
     const conflictsByName = new Map(conflicts.map((conflict) => [conflict.name, conflict.suggestedName]))
     return sources.flatMap((source, index) => {
-      const suggestedName = conflictsByName.get(candidates[index].name)
-      return suggestedName ? [{ source: source.virtualPath, existingName: candidates[index].name, suggestedName }] : []
+      const existingName = elementAt(candidates, index).name
+      const suggestedName = conflictsByName.get(existingName)
+      return suggestedName === undefined ? [] : [{ source: source.virtualPath, existingName, suggestedName }]
     })
   }
 
@@ -56,7 +58,7 @@ export class CopyMoveUseCases {
         validateTargets(targets)
         const prepared = await this.filesystem.prepareSources(sources, operation.signal, (name) => this.transfers.progress(operation.id, { currentName: name }))
         const plan: CopyMovePlan = {
-          items: prepared.sources.map((source, index) => ({ ...source, target: targets[index] })),
+          items: prepared.sources.map((source, index) => ({ ...source, target: elementAt(targets, index) })),
           bytesTotal: prepared.bytesTotal
         }
         this.transfers.progress(operation.id, { phase: 'transferring', bytesTotal: plan.bytesTotal })

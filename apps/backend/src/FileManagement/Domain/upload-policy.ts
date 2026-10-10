@@ -1,6 +1,10 @@
 import { INTERNAL_TEMPORARY_NAME } from './path-policy.js'
 import { Failure } from '../../shared/failures.js'
 
+// The manifest lists every file in the selection (roughly 100 bytes each), so this bound admits folders of about 600k files.
+// It caps both the preflight JSON body and the multipart manifest field, which are parsed in memory. 64 MiB.
+export const MAX_UPLOAD_MANIFEST_BYTES = 67_108_864
+
 export interface UploadManifestItem {
   name: string
   type: 'file' | 'directory'
@@ -15,7 +19,7 @@ export function parseUploadManifest(value: unknown, total: number, partCount?: n
   let parsed = value
   if (typeof parsed === 'string') {
     try {
-      parsed = JSON.parse(parsed) as unknown
+      parsed = JSON.parse(parsed)
     } catch {
       throw invalidUpload()
     }

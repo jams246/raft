@@ -11,7 +11,7 @@ interface OperationStatusProps {
   isConnected: boolean
   notice: string
   uploadPending: boolean
-  transferPendingKind?: 'copy' | 'move'
+  transferPendingKind?: 'copy' | 'move' | undefined
 }
 
 export function OperationStatus({ operation, isConnected, notice, uploadPending, transferPendingKind }: OperationStatusProps) {

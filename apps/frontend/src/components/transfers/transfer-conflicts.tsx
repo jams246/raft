@@ -4,7 +4,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 interface TransferConflictsProps {
   kind: 'upload' | 'copy'
-  conflicts?: (CopyConflict | UploadConflict)[]
+  conflicts?: (CopyConflict | UploadConflict)[] | undefined
   policy: ConflictPolicy
   disabled: boolean
   onPolicyChange: (policy: ConflictPolicy) => void

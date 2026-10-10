@@ -14,8 +14,10 @@ import type {
 interface SessionState {
   session: UploadSession
   bytesProcessed: number
-  activeBytes: Map<number, number>
-  nextPartId: number
+  // Bytes written so far by parts still in progress, kept as a running total so each progress report is constant time.
+  activeBytes: number
+  // Item names by part index, parsed once per request: re-parsing the manifest for every part is quadratic in folder size.
+  partNames?: ReadonlyMap<number, string>
 }
 
 export class UploadManagement {
@@ -40,7 +42,7 @@ export class UploadManagement {
     assertCanUpload(directory)
     const operation = this.transfers.reserveUpload(total, bytesTotal)
     const session: UploadSession = { id: operation.id, directory, total, bytesTotal, signal: operation.signal }
-    this.sessions.set(session.id, { session, bytesProcessed: 0, activeBytes: new Map(), nextPartId: 0 })
+    this.sessions.set(session.id, { session, bytesProcessed: 0, activeBytes: 0 })
     return session
   }
 
@@ -68,27 +70,30 @@ export class UploadManagement {
   async storePart(id: string, file: MultipartFile, currentName: string): Promise<StoredUploadPart> {
     const state = this.getState(id)
     if (!state.session.stagingPath) throw new Failure('operation_busy', 'The upload is not ready to receive files.')
-    const partId = state.nextPartId++
-    state.activeBytes.set(partId, 0)
+    let partBytes = 0
+    const setPartBytes = (bytes: number) => {
+      state.activeBytes += bytes - partBytes
+      partBytes = bytes
+    }
     const report = (name: string) =>
       this.transfers.progress(id, {
         phase: 'transferring',
         currentName: name,
-        bytesProcessed: state.bytesProcessed + [...state.activeBytes.values()].reduce((sum, bytes) => sum + bytes, 0),
+        bytesProcessed: state.bytesProcessed + state.activeBytes,
         bytesTotal: state.session.bytesTotal
       })
     report(currentName)
     try {
       const part = await this.staging.storePart(state.session.stagingPath, state.session.bytesTotal, state.session.signal, file, currentName, (bytes) => {
-        state.activeBytes.set(partId, bytes)
+        setPartBytes(bytes)
         report(currentName)
       })
-      state.activeBytes.delete(partId)
+      setPartBytes(0)
       state.bytesProcessed += part.size
       report(currentName)
       return part
     } catch (error) {
-      state.activeBytes.delete(partId)
+      setPartBytes(0)
       report(currentName)
       throw error
     }
@@ -100,12 +105,9 @@ export class UploadManagement {
     if (!match) return fallback
     const part = Number(match[1])
     if (!Number.isSafeInteger(part)) return fallback
-    try {
-      const manifest = parseUploadManifest(rawManifest, this.getState(id).session.total)
-      return manifest.items.flatMap((item) => item.files.map((file) => [file.part, item.name] as const)).find(([index]) => index === part)?.[1] ?? fallback
-    } catch {
-      return fallback
-    }
+    const state = this.getState(id)
+    state.partNames ??= readPartNames(rawManifest, state.session.total)
+    return state.partNames.get(part) ?? fallback
   }
 
   removePart(id: string, path: string): Promise<void> {
@@ -117,7 +119,8 @@ export class UploadManagement {
   async finish(id: string, rawManifest: unknown, parts: StoredUploadPart[], policy: ConflictPolicy): Promise<void> {
     const state = this.getState(id)
     const { session } = state
-    if (!session.destination || !session.stagingPath) throw new Failure('operation_busy', 'The upload is not ready to finish.')
+    const { stagingPath } = session
+    if (!session.destination || !stagingPath) throw new Failure('operation_busy', 'The upload is not ready to finish.')
     const storedBytes = parts.reduce((sum, part) => {
       if (!Number.isSafeInteger(part.size) || part.size < 0) throw invalidUpload()
       return sum + BigInt(part.size)
@@ -131,12 +134,12 @@ export class UploadManagement {
     await this.mutations.runTransferMutation(id, async () => {
       session.signal.throwIfAborted()
       const destination = await this.validateDestination(session.directory)
-      await this.staging.finish(session.stagingPath!, destination, id, manifest, parts, policy, session.signal, (index, name) =>
+      await this.staging.finish(stagingPath, destination, id, manifest, parts, policy, session.signal, (index, name) =>
         this.transfers.progress(id, { current: index + 1, currentName: name })
       )
     })
     try {
-      await this.staging.cleanup(session.stagingPath)
+      await this.staging.cleanup(stagingPath)
     } catch (error) {
       throw withFailure(toFailure(error), 'The upload completed and its items were kept, but temporary upload data could not be removed.')
     }
@@ -178,7 +181,7 @@ function getManifestLength(value: unknown): number {
   let parsed = value
   if (typeof parsed === 'string') {
     try {
-      parsed = JSON.parse(parsed) as unknown
+      parsed = JSON.parse(parsed)
     } catch {
       return 0
     }
@@ -189,4 +192,14 @@ function getManifestLength(value: unknown): number {
 
 function invalidUpload(): Failure {
   return new Failure('invalid_request', 'The upload request is invalid.')
+}
+
+function readPartNames(rawManifest: unknown, total: number): ReadonlyMap<number, string> {
+  try {
+    const { items } = parseUploadManifest(rawManifest, total)
+    return new Map(items.flatMap((item) => item.files.map((file) => [file.part, item.name] as const)))
+  } catch {
+    // An invalid manifest is rejected when the upload completes; until then parts fall back to their own file names.
+    return new Map()
+  }
 }

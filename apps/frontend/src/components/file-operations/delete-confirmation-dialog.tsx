@@ -42,7 +42,7 @@ export function DeleteConfirmationDialog({ paths, isLocked, open, onOpenChange, 
 
     let succeeded = false
     try {
-      await postFileOperation('/api/delete', { paths }, 'Unable to delete selected items.')
+      await postFileOperation('/api/delete', { paths }, 'Unable to delete selected items.', null)
       succeeded = true
       onOpenChange(false)
     } catch (error) {

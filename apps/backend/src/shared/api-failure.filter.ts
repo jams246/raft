@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, type ExceptionFilter, HttpException } from '@nestjs/common'
+import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException } from '@nestjs/common'
 import type { ApiError, ApiErrorCode } from '@raft/shared'
 import type { Response } from 'express'
 import { Failure, type FailureKind, toFailure } from './failures.js'
@@ -18,10 +18,14 @@ const failureResponses: Record<FailureKind, { code: ApiErrorCode; status: number
   cancelled: { code: 'operation_failed', status: 409 }
 }
 
+const PAYLOAD_TOO_LARGE = 413
+const payloadTooLargeError: ApiError = { error: 'invalid_request', message: 'The request is too large.' }
+
 const httpErrorsByStatus: Partial<Record<number, ApiError>> = {
   400: { error: 'invalid_request', message: 'The request is invalid.' },
   403: { error: 'permission_denied', message: 'Permission denied.' },
   404: { error: 'not_found', message: 'The requested resource was not found.' },
+  [PAYLOAD_TOO_LARGE]: payloadTooLargeError,
   507: { error: 'insufficient_storage', message: 'The destination does not have enough free space for this operation.' }
 }
 
@@ -42,6 +46,7 @@ export class ApiFailureFilter implements ExceptionFilter {
 }
 
 function toHttpFailureResponse(exception: unknown): { status: number; body: ApiError } | undefined {
+  if (isPayloadTooLarge(exception)) return { status: PAYLOAD_TOO_LARGE, body: payloadTooLargeError }
   if (!(exception instanceof HttpException)) return undefined
   const status = exception.getStatus()
   const response = exception.getResponse()
@@ -95,19 +100,27 @@ function getMessage(response: string | object, fallback: string): string {
   return fallback
 }
 
+// Express body parsers reject oversized bodies with plain errors rather than Nest HttpExceptions.
+function isPayloadTooLarge(exception: unknown): boolean {
+  return typeof exception === 'object' && exception !== null && 'type' in exception && exception.type === 'entity.too.large'
+}
+
+// Record<ApiErrorCode, true> fails to compile when a code is added to the shared union but not listed here.
+const API_ERROR_CODES = {
+  invalid_path: true,
+  not_found: true,
+  permission_denied: true,
+  unsupported: true,
+  protected_root: true,
+  conflict: true,
+  operation_busy: true,
+  operation_failed: true,
+  invalid_request: true,
+  insufficient_storage: true
+} satisfies Record<ApiErrorCode, true>
+
 function isApiErrorCode(value: unknown): value is ApiErrorCode {
-  return (
-    value === 'invalid_path' ||
-    value === 'not_found' ||
-    value === 'permission_denied' ||
-    value === 'unsupported' ||
-    value === 'protected_root' ||
-    value === 'conflict' ||
-    value === 'operation_busy' ||
-    value === 'operation_failed' ||
-    value === 'invalid_request' ||
-    value === 'insufficient_storage'
-  )
+  return typeof value === 'string' && Object.hasOwn(API_ERROR_CODES, value)
 }
 
 function failureKind(code: ApiErrorCode, status: number): FailureKind {

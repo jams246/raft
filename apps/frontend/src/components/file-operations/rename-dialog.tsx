@@ -12,7 +12,7 @@ import { postFileOperation } from './post-file-operation'
 import { useOperationDialogOpenChange } from './use-operation-dialog-open-change'
 
 interface RenameDialogProps {
-  item?: FileEntry
+  item?: FileEntry | undefined
   isLocked: boolean
   open: boolean
   onOpenChange: (open: boolean) => void

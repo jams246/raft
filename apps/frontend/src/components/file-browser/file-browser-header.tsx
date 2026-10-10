@@ -4,7 +4,7 @@ import type { TransferWorkflowState } from './use-transfer-destination'
 
 interface FileBrowserHeaderProps {
   isDualPane: boolean
-  transferWorkflow?: TransferWorkflowState
+  transferWorkflow?: TransferWorkflowState | undefined
   onReturnToMyFiles: () => void
   onToggleDualPane: () => void
 }

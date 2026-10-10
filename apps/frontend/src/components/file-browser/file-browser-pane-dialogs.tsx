@@ -9,8 +9,8 @@ interface FileBrowserPaneDialogsProps {
   isLocked: boolean
   parentPath: string
   newFolderOpen: boolean
-  renameItem?: FileEntry
-  deletePaths?: string[]
+  renameItem?: FileEntry | undefined
+  deletePaths?: string[] | undefined
   onCloseAutoFocus: () => void
   onNewFolderOpenChange: (open: boolean) => void
   onRenameOpenChange: (open: boolean) => void

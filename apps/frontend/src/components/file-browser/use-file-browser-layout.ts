@@ -34,12 +34,12 @@ export function useFileBrowserLayout() {
     }
 
     if (!isDualPane) {
-      const currentPane = panes[0]
-      setPanes([...panes, createPane(currentPane.path)])
+      setPanes([...panes, createPane(panes[0]?.path ?? '/')])
       return
     }
 
     const retainedPane = panes.find((pane) => pane.id === mostRecentlyInteractedPaneId.current) ?? panes[0]
+    if (retainedPane === undefined) return
     setPanes([retainedPane])
     mostRecentlyInteractedPaneId.current = retainedPane.id
   }

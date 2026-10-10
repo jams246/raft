@@ -11,7 +11,7 @@ export interface FileBrowserListingProps {
   isFrozen?: boolean
   isNavigationOnly?: boolean
   path: string
-  listing?: DirectoryListing
+  listing?: DirectoryListing | undefined
   entries: FileEntry[]
   selectedPaths: Set<string>
   isLoading: boolean

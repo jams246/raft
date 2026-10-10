@@ -2,6 +2,9 @@
 
 import type { DirectoryListing } from '@raft/shared'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ApiRequestError } from '@/lib/api/api-error'
+import { API_REQUEST_TIMEOUT_MS, apiJson } from '@/lib/api/api-request'
+import { decodeDirectoryListing } from '@/lib/api/decoders'
 
 export function useDirectoryListing(path: string) {
   const [listing, setListing] = useState<DirectoryListing>()
@@ -26,23 +29,19 @@ export function useDirectoryListing(path: string) {
       setMissingPath(undefined)
       try {
         const query = new URLSearchParams({ path })
-        const response = await fetch(`/api/files?${query}`, { signal: abortController.signal })
-        if (!response.ok) {
-          const error: unknown = await response.json().catch(() => undefined)
-          if (typeof error === 'object' && error !== null && 'error' in error && error.error === 'not_found') {
-            if (!abortController.signal.aborted && currentPath.current === path) {
-              setListing(undefined)
-              setMissingPath(path)
-              setHasError(true)
-            }
-            return
-          }
-          throw new Error('Listing request failed.')
-        }
-        const nextListing: DirectoryListing = await response.json()
+        const nextListing = await apiJson(
+          `/api/files?${query}`,
+          { failureMessage: 'Listing request failed.', signal: abortController.signal, timeoutMs: API_REQUEST_TIMEOUT_MS },
+          decodeDirectoryListing
+        )
         if (!abortController.signal.aborted && currentPath.current === path) setListing(nextListing)
-      } catch {
-        if (!abortController.signal.aborted && currentPath.current === path) setHasError(true)
+      } catch (error: unknown) {
+        if (abortController.signal.aborted || currentPath.current !== path) return
+        if (error instanceof ApiRequestError && error.code === 'not_found') {
+          setListing(undefined)
+          setMissingPath(path)
+        }
+        setHasError(true)
       } finally {
         if (!abortController.signal.aborted && currentPath.current === path) setIsLoading(false)
       }

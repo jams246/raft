@@ -35,8 +35,9 @@ export function navigatePane(pane: FileBrowserPaneState, path: string): FileBrow
 
 export function traversePaneHistory(pane: FileBrowserPaneState, direction: number): FileBrowserPaneState {
   const historyIndex = pane.historyIndex + direction
-  if (historyIndex < 0 || historyIndex >= pane.history.length) return pane
-  return { ...pane, path: pane.history[historyIndex], historyIndex, selectedPaths: [], selectionAnchor: undefined }
+  const path = pane.history[historyIndex]
+  if (path === undefined) return pane
+  return { ...pane, path, historyIndex, selectedPaths: [], selectionAnchor: undefined }
 }
 
 export function sortPane(pane: FileBrowserPaneState, column: SortColumn): FileBrowserPaneState {

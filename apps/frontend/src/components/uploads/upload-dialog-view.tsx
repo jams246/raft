@@ -14,7 +14,7 @@ interface UploadDialogViewProps {
   isOperationLocked: boolean
   canRetryCheck: boolean
   isChecking: boolean
-  conflicts?: UploadConflict[]
+  conflicts?: UploadConflict[] | undefined
   policy: 'rename' | 'overwrite'
   errorMessage: string
   cancelButtonRef: RefObject<HTMLButtonElement | null>

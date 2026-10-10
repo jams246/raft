@@ -6,7 +6,7 @@ const WATCH_DEBOUNCE_MS = 75
 interface DirectoryWatch {
   watcher: FSWatcher
   listeners: Set<{ onChange: () => void; onError: () => void }>
-  debounce?: ReturnType<typeof setTimeout>
+  debounce: ReturnType<typeof setTimeout> | undefined
 }
 
 export class DirectoryWatchAdapter {
@@ -21,7 +21,7 @@ export class DirectoryWatchAdapter {
       } catch (error) {
         throw toFilesystemFailure(error)
       }
-      const createdWatch: DirectoryWatch = { watcher, listeners: new Set() }
+      const createdWatch: DirectoryWatch = { watcher, listeners: new Set(), debounce: undefined }
       directoryWatch = createdWatch
       this.watches.set(absolutePath, createdWatch)
       const notify = () => {

@@ -70,7 +70,7 @@ export class TransferOperation {
     )
       return undefined
 
-    this.currentState = { ...active, current, currentName, phase, bytesProcessed, bytesTotal }
+    this.currentState = { ...active, current, phase, bytesProcessed, bytesTotal, ...(currentName === undefined ? {} : { currentName }) }
     return {
       state: this.currentState,
       immediate: current !== active.current || currentName !== active.currentName || phase !== active.phase

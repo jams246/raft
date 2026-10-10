@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { Failure } from '../../shared/failures.js'
+import { elementAt } from '../../shared/collections.js'
 import type { ReplacementCandidate, UploadConflict } from '../Domain/models.js'
 import type { UploadManifestItem } from '../Domain/upload-policy.js'
 import { conflictName, firstConflictCounter } from '../Domain/conflict-name-policy.js'
@@ -16,7 +17,10 @@ export interface PreparedDestination {
 
 export async function getConflicts(destinationPath: string, items: ReplacementCandidate[]): Promise<UploadConflict[]> {
   const targets = await resolveReplacementTargets(destinationPath, items, 'rename')
-  return targets.flatMap((target, index) => (target.name === items[index].name ? [] : [{ name: items[index].name, suggestedName: target.name }]))
+  return targets.flatMap((target, index) => {
+    const { name } = elementAt(items, index)
+    return target.name === name ? [] : [{ name, suggestedName: target.name }]
+  })
 }
 
 export async function validateIncomingNames(stagingPath: string, items: UploadManifestItem[]): Promise<void> {
@@ -31,13 +35,14 @@ export async function validateIncomingNames(stagingPath: string, items: UploadMa
       if (item.type !== 'directory') continue
       for (const file of item.files) {
         const components = file.path.split('/')
+        const fileName = components.pop() ?? ''
         let parentPath = itemPath
-        for (const component of components.slice(0, -1)) {
+        for (const component of components) {
           await createClaimDirectory(parentPath, component)
           parentPath = join(parentPath, component)
         }
         try {
-          const handle = await open(join(parentPath, components[components.length - 1]), 'wx')
+          const handle = await open(join(parentPath, fileName), 'wx')
           await handle.close()
         } catch (error) {
           if (isExists(error)) throw new Failure('invalid_request', 'Selected files have names that collide on this filesystem.')
