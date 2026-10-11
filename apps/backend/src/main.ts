@@ -5,13 +5,14 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Server } from 'node:http'
 import { join } from 'node:path'
 import { AppModule } from './app.module.js'
+import { ApiFailureFilter } from './composition/api-failure.filter.js'
+import { config } from './config.js'
 import { MAX_UPLOAD_MANIFEST_BYTES } from './FileManagement/Domain/upload-policy.js'
-import { ApiFailureFilter } from './shared/api-failure.filter.js'
 import { parsePort } from './shared/environment.js'
 
 async function bootstrap(): Promise<void> {
   // Configuration is validated before Nest starts so a bad PORT fails without opening resources.
-  const port = parsePort(process.env.PORT)
+  const port = parsePort(config.port)
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
   // Upload preflight posts the whole manifest as JSON, which outgrows the 100 KB default for large folders.
   app.useBodyParser('json', { limit: MAX_UPLOAD_MANIFEST_BYTES })
@@ -23,7 +24,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new ApiFailureFilter())
   app.enableShutdownHooks()
 
-  if (process.env.NODE_ENV === 'production') {
+  if (config.nodeEnv === 'production') {
     const exportDirectory = join(import.meta.dirname, '../../frontend/out/site')
     app.useStaticAssets(exportDirectory)
   }

@@ -4,9 +4,8 @@ import type { Readable } from 'node:stream'
 import { basename, dirname } from 'node:path'
 import { type Observable, catchError, from, mergeMap, race, throwError } from 'rxjs'
 import { Failure, toFailure } from '../../shared/failures.js'
-import { toPresentationFailure } from '../../shared/api-failure.filter.js'
+import { toPresentationFailure } from './api-failures.js'
 import { UploadManagement } from '../Application/upload-management.js'
-import { MAX_UPLOAD_MANIFEST_BYTES } from '../Domain/upload-policy.js'
 import type { StoredUploadPart } from '../Application/ports.js'
 import type { MultipartRequestState, UploadRequest } from './upload-request.js'
 import { readUploadManifest } from './upload-request.js'
@@ -45,7 +44,7 @@ export class UploadInterceptor implements NestInterceptor {
     const upload = request.transferUpload
     if (!upload) return next.handle()
 
-    const fileInterceptor = AnyFilesInterceptor({ storage: this.createStorage(request, upload), limits: { fieldSize: MAX_UPLOAD_MANIFEST_BYTES } })
+    const fileInterceptor = AnyFilesInterceptor({ storage: this.createStorage(request, upload), limits: { fieldSize: this.uploads.maxManifestBytes } })
     try {
       const multipart = from(Promise.resolve(new fileInterceptor().intercept(context, next))).pipe(mergeMap((result) => result))
       const uploadFailure = from(upload.failureNotification).pipe(mergeMap((error) => throwError(() => error)))

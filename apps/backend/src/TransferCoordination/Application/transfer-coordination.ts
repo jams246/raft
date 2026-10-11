@@ -1,3 +1,4 @@
+import type { TransferCoordinator } from '../../contracts/transfer-coordination.js'
 import { Failure, toFailure } from '../../shared/failures.js'
 import {
   type TransferEvent as DomainTransferEvent,
@@ -19,7 +20,8 @@ interface ActiveTransfer {
   timer: unknown
 }
 
-export class TransferCoordination {
+// Implementing the contract makes the compiler flag any drift between it and this context's Domain types.
+export class TransferCoordination implements TransferCoordinator {
   private active: ActiveTransfer | undefined
 
   constructor(private readonly runtime: TransferRuntimePort) {}

@@ -2,7 +2,7 @@ import { Controller, type MessageEvent, Query, Sse, SseSignal } from '@nestjs/co
 import { EMPTY, Observable } from 'rxjs'
 import type { TransferEvent as ApiTransferEvent, TransferState as ApiTransferState } from '@raft/shared'
 import { Failure, toFailure } from '../../shared/failures.js'
-import { toApiErrorCode, toPresentationFailure } from '../../shared/api-failure.filter.js'
+import { toApiErrorCode, toPresentationFailure } from './api-failures.js'
 import { DirectoryEvents } from '../Application/directory-events.js'
 import type { OperationEvent, TransferSnapshot } from '../Application/ports.js'
 

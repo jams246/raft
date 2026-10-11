@@ -1,6 +1,5 @@
-import { Module } from '@nestjs/common'
-import { TransferCoordinationModule } from '../TransferCoordination/TransferCoordination.module.js'
-import { TransferCoordination } from '../TransferCoordination/Application/transfer-coordination.js'
+import { type DynamicModule, Module, type Provider, type Type } from '@nestjs/common'
+import { TRANSFER_COORDINATOR, type TransferCoordinator } from '../contracts/transfer-coordination.js'
 import { DirectoryEvents } from './Application/directory-events.js'
 import { HealthQuery } from './Application/health-query.js'
 import { DownloadUseCases } from './Application/downloads.js'
@@ -36,14 +35,19 @@ import { TransferCoordinationAdapter } from './Infrastructure/transfer-coordinat
 import { UploadPartStorage } from './Infrastructure/upload-part-storage.js'
 import { UploadStagingAdapter } from './Infrastructure/upload-staging-adapter.js'
 
-@Module({
-  imports: [TransferCoordinationModule],
-  controllers: [FilesController, DirectoriesController, HealthController, UploadsController, EventsController, CopyController, MoveController],
-  providers: [
+export interface FileManagementOptions {
+  /** Raw MIN_FREE_SPACE value; CapacityAdapter parses it and warns about invalid values. */
+  minFreeSpace: string | undefined
+}
+
+const controllers = [FilesController, DirectoriesController, HealthController, UploadsController, EventsController, CopyController, MoveController]
+
+function createProviders(options: FileManagementOptions): Provider[] {
+  return [
     UploadSlotGuard,
     UploadInterceptor,
     { provide: PathResolver, useFactory: () => new PathResolver() },
-    { provide: CAPACITY, useFactory: () => new CapacityAdapter() },
+    { provide: CAPACITY, useFactory: () => new CapacityAdapter(options.minFreeSpace) },
     {
       provide: CopyMoveStorageAdapter,
       useFactory: (capacity: CapacityAdapter) => new CopyMoveStorageAdapter(capacity),
@@ -68,8 +72,8 @@ import { UploadStagingAdapter } from './Infrastructure/upload-staging-adapter.js
     },
     {
       provide: TRANSFER_COORDINATION,
-      useFactory: (transfers: TransferCoordination) => new TransferCoordinationAdapter(transfers),
-      inject: [TransferCoordination]
+      useFactory: (transfers: TransferCoordinator) => new TransferCoordinationAdapter(transfers),
+      inject: [TRANSFER_COORDINATOR]
     },
     {
       provide: MUTATION_SERIALIZATION,
@@ -110,7 +114,16 @@ import { UploadStagingAdapter } from './Infrastructure/upload-staging-adapter.js
       inject: [CAPACITY]
     }
   ]
-})
+}
+
+@Module({})
 // Nest requires a decorated module class for runtime metadata.
 // oxlint-disable-next-line typescript/no-extraneous-class
-export class FileManagementModule {}
+export class FileManagementModule {
+  /**
+   * @param transferCoordination - Module that provides and exports {@link TRANSFER_COORDINATOR}.
+   */
+  static register(transferCoordination: Type<unknown>, options: FileManagementOptions): DynamicModule {
+    return { module: FileManagementModule, imports: [transferCoordination], controllers, providers: createProviders(options) }
+  }
+}

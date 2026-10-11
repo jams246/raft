@@ -24,8 +24,8 @@ export class CapacityAdapter implements CapacityPort {
   readonly warning?: string
   private readonly reserveBytes: bigint
 
-  constructor() {
-    const configured = process.env.MIN_FREE_SPACE
+  /** @param configured - Raw MIN_FREE_SPACE value, or undefined to use the 1GiB default. */
+  constructor(configured: string | undefined) {
     const parsed = configured === undefined ? DEFAULT_RESERVE_BYTES : parseMinimumFreeSpace(configured)
     if (parsed === undefined) {
       this.reserveBytes = DEFAULT_RESERVE_BYTES

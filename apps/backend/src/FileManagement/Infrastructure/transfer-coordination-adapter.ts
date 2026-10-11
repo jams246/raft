@@ -1,9 +1,8 @@
-import type { TransferCoordination } from '../../TransferCoordination/Application/transfer-coordination.js'
-import type { TransferEvent, TransferState } from '../../TransferCoordination/Application/transfer-coordination.js'
+import type { TransferCoordinator, TransferEvent, TransferState } from '../../contracts/transfer-coordination.js'
 import type { OperationEvent, TransferCoordinationPort, TransferProgress, TransferReservation, TransferSnapshot } from '../Application/ports.js'
 
 export class TransferCoordinationAdapter implements TransferCoordinationPort {
-  constructor(private readonly transfers: TransferCoordination) {}
+  constructor(private readonly transfers: TransferCoordinator) {}
 
   getSnapshot(): TransferSnapshot | null {
     const state = this.transfers.getSnapshot()

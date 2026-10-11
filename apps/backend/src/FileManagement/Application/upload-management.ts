@@ -1,6 +1,6 @@
 import { Failure, toFailure, withFailure } from '../../shared/failures.js'
 import { assertCanUpload } from '../Domain/path-policy.js'
-import { parseUploadManifest } from '../Domain/upload-policy.js'
+import { MAX_UPLOAD_MANIFEST_BYTES, parseUploadManifest } from '../Domain/upload-policy.js'
 import type {
   ConflictPolicy,
   MultipartFile,
@@ -21,6 +21,8 @@ interface SessionState {
 }
 
 export class UploadManagement {
+  /** Largest upload manifest, in bytes, accepted in a multipart manifest field. */
+  readonly maxManifestBytes = MAX_UPLOAD_MANIFEST_BYTES
   private readonly sessions = new Map<string, SessionState>()
 
   constructor(
